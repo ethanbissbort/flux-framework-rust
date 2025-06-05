@@ -1,0 +1,45 @@
+flux-framework-rust/
+├── Cargo.toml                    # Main project configuration
+├── Cargo.lock
+├── src/
+│   ├── main.rs                   # Main orchestrator entry point
+│   ├── lib.rs                    # Library exports
+│   ├── cli.rs                    # Command-line interface handling
+│   ├── config.rs                 # Configuration management
+│   ├── error.rs                  # Error types and handling
+│   ├── helpers/                  # Helper functions (flux_helpers.sh equivalent)
+│   │   ├── mod.rs
+│   │   ├── logging.rs            # Logging functionality
+│   │   ├── validation.rs         # Input validation
+│   │   ├── system.rs             # System detection and utilities
+│   │   ├── file_ops.rs           # File operations and backups
+│   │   ├── network.rs            # Network utilities
+│   │   └── user_input.rs         # User interaction helpers
+│   ├── modules/                  # Feature modules
+│   │   ├── mod.rs
+│   │   ├── update.rs             # System update module
+│   │   ├── network.rs            # Network configuration module
+│   │   ├── hostname.rs           # Hostname management module
+│   │   ├── user.rs               # User management module
+│   │   ├── ssh.rs                # SSH hardening module
+│   │   ├── firewall.rs           # Firewall configuration module
+│   │   ├── certs.rs              # Certificate management module
+│   │   ├── sysctl.rs             # System hardening module
+│   │   ├── zsh.rs                # ZSH installation module
+│   │   ├── motd.rs               # MOTD customization module
+│   │   └── netdata.rs            # NetData monitoring module
+│   └── workflows/                # Pre-defined workflows
+│       ├── mod.rs
+│       ├── essential.rs
+│       ├── complete.rs
+│       ├── security.rs
+│       └── development.rs
+├── config/                       # Configuration templates
+│   └── default.toml
+├── tests/                        # Unit and integration tests
+│   ├── integration_tests.rs
+│   └── module_tests/
+├── docs/                         # Documentation
+│   ├── migration_guide.md
+│   └── api_reference.md
+└── README.md

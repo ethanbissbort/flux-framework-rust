@@ -1,10 +1,10 @@
 [package]
 name = "flux-framework"
 version = "3.0.0"
-edition = "2021"
+edition = "2025"
 authors = ["Flux Contributors"]
 description = "A modular, enterprise-grade Linux system configuration and hardening framework"
-repository = "https://github.com/yourusername/flux-framework-rust"
+repository = "https://github.com/ethanbissbortflux-framework-rust"
 license = "MIT"
 keywords = ["system-administration", "linux", "configuration", "security", "automation"]
 categories = ["command-line-utilities", "config"]
@@ -59,6 +59,8 @@ colored = "2.1"
 # SSH operations
 ssh2 = "0.9"
 ssh-key = { version = "0.6", features = ["ed25519", "rsa"] }
+sha2 = "0.10"
+base64 = "0.21" 
 
 # Validation
 regex = "1.10"

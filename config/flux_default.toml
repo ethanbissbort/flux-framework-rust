@@ -1,0 +1,632 @@
+# Flux Framework Default Configuration
+# =================================
+# 
+# This is the main configuration file for the Flux Framework.
+# Copy this file to /etc/flux/flux.toml and customize as needed.
+#
+# Configuration Structure:
+# - [general]: Global framework settings
+# - [modules.*]: Individual module configurations
+# - [workflows.*]: Workflow-specific settings
+#
+# Modes:
+# - "interactive": Prompt user for confirmations (default)
+# - "auto": Run automatically with minimal prompts
+# - "dry-run": Show what would be done without making changes
+
+# =============================================================================
+# GENERAL SETTINGS
+# =============================================================================
+
+[general]
+# Execution mode: "interactive", "auto", or "dry-run"
+mode = "interactive"
+
+# Logging level: "debug", "info", "warn", "error"
+log_level = "info"
+
+# Enable colored terminal output
+colored_output = true
+
+# Default SSH port for connections
+default_ssh_port = 22
+
+# Default administrative user to create
+default_admin_user = "fluxadmin"
+
+# Default groups for administrative users
+default_admin_groups = ["sudo", "adm", "systemd-journal"]
+
+# GitHub username for SSH key import (optional)
+github_user = ""
+
+# Module directory (leave empty for built-in modules)
+modules_dir = ""
+
+# Default network gateway (auto-detected if empty)
+default_gateway = ""
+
+# Default DNS servers
+default_dns = ["1.1.1.1", "8.8.8.8"]
+
+# =============================================================================
+# MODULE CONFIGURATIONS
+# =============================================================================
+
+# -----------------------------------------------------------------------------
+# SYSTEM UPDATE MODULE
+# -----------------------------------------------------------------------------
+[modules.update]
+# Automatically install security updates
+auto_security_updates = true
+
+# Enable automatic package updates
+enable_unattended_upgrades = true
+
+# Reboot automatically if required after updates
+auto_reboot = false
+
+# Time for automatic reboot (if auto_reboot = true)
+auto_reboot_time = "02:00"
+
+# Include development packages in essential installation
+include_dev_packages = false
+
+# Custom package lists
+essential_packages = [
+    "curl", "wget", "git", "vim", "htop", "neofetch", "unzip",
+    "ca-certificates", "gnupg", "lsb-release", "software-properties-common",
+    "build-essential", "tree", "ncdu", "iotop", "net-tools", "dnsutils",
+    "telnet", "rsync", "screen", "tmux", "jq", "dos2unix"
+]
+
+development_packages = [
+    "nodejs", "npm", "python3", "python3-pip", "python3-venv",
+    "docker.io", "docker-compose", "ansible"
+]
+
+# Packages to remove (bloatware)
+remove_packages = []
+
+# -----------------------------------------------------------------------------
+# NETWORK CONFIGURATION MODULE
+# -----------------------------------------------------------------------------
+[modules.network]
+# Configure static IP (false = use DHCP)
+configure_static = false
+
+# Primary network interface (auto-detected if empty)
+interface = ""
+
+# Static IP configuration (only used if configure_static = true)
+ip_address = ""
+netmask = "255.255.255.0"
+gateway = ""
+
+# DNS servers (used for static configuration)
+dns_servers = ["1.1.1.1", "8.8.8.8"]
+
+# MTU size (leave 0 for default)
+mtu = 0
+
+# VLAN configuration (optional)
+vlan_id = 0
+vlan_parent_interface = ""
+
+# Network manager preference: "netplan", "interfaces", "networkmanager", "auto"
+preferred_manager = "auto"
+
+# IPv6 configuration
+enable_ipv6 = true
+ipv6_address = ""
+
+# -----------------------------------------------------------------------------
+# HOSTNAME MODULE
+# -----------------------------------------------------------------------------
+[modules.hostname]
+# Set system hostname (empty = keep current)
+set_hostname = ""
+
+# Set fully qualified domain name (empty = hostname only)
+set_fqdn = ""
+
+# Update /etc/hosts file
+update_hosts_file = true
+
+# Configure domain in resolv.conf
+configure_domain = true
+
+# Services to restart after hostname change
+restart_services = ["ssh", "rsyslog"]
+
+# -----------------------------------------------------------------------------
+# USER MANAGEMENT MODULE
+# -----------------------------------------------------------------------------
+[modules.user]
+# Create administrative user
+create_admin_user = true
+
+# Admin user details
+admin_username = "fluxadmin"
+admin_password = ""  # Leave empty to disable password login
+admin_groups = ["sudo", "adm", "systemd-journal"]
+admin_shell = "/bin/bash"
+admin_home = ""  # Auto-generated if empty
+
+# SSH key management
+install_ssh_keys = true
+github_username = ""  # GitHub username to import SSH keys from
+ssh_key_file = ""     # Path to SSH public key file
+authorized_keys = []  # Direct SSH public keys
+
+# User creation options
+create_home_directory = true
+copy_skel_files = true
+set_password_expiry = false
+force_password_change = false
+
+# Additional users to create
+[[modules.user.additional_users]]
+username = ""
+groups = ["users"]
+shell = "/bin/bash"
+ssh_keys = []
+
+# -----------------------------------------------------------------------------
+# SSH HARDENING MODULE
+# -----------------------------------------------------------------------------
+[modules.ssh]
+# SSH service configuration
+port = 22
+listen_addresses = ["0.0.0.0"]  # ["0.0.0.0", "::"] for IPv4 and IPv6
+
+# Authentication settings
+disable_root_login = true
+disable_password_auth = true
+enable_key_only_auth = true
+permit_empty_passwords = false
+
+# Security settings
+max_auth_tries = 3
+max_sessions = 10
+login_grace_time = 60
+client_alive_interval = 300
+client_alive_count_max = 3
+
+# Access control
+allowed_users = []       # Empty = allow all users
+allowed_groups = []      # Empty = allow all groups
+denied_users = ["root"]
+denied_groups = []
+
+# Protocol and cipher settings
+protocol_version = "2"
+ciphers = [
+    "aes256-gcm@openssh.com",
+    "aes128-gcm@openssh.com",
+    "aes256-ctr",
+    "aes192-ctr",
+    "aes128-ctr"
+]
+macs = [
+    "hmac-sha2-256-etm@openssh.com",
+    "hmac-sha2-512-etm@openssh.com",
+    "hmac-sha2-256",
+    "hmac-sha2-512"
+]
+kex_algorithms = [
+    "curve25519-sha256@libssh.org",
+    "ecdh-sha2-nistp521",
+    "ecdh-sha2-nistp384",
+    "ecdh-sha2-nistp256",
+    "diffie-hellman-group16-sha512"
+]
+
+# Feature settings
+x11_forwarding = false
+tcp_forwarding = false
+agent_forwarding = false
+gateway_ports = false
+permit_tunnel = false
+
+# Banner and logging
+banner_file = "/etc/ssh/banner"
+log_level = "INFO"
+syslog_facility = "AUTH"
+
+# -----------------------------------------------------------------------------
+# FIREWALL MODULE
+# -----------------------------------------------------------------------------
+[modules.firewall]
+# Enable firewall
+enable_firewall = true
+
+# Firewall backend: "ufw", "firewalld", "iptables", "auto"
+backend = "auto"
+
+# Default policies
+default_input_policy = "deny"
+default_output_policy = "allow"
+default_forward_policy = "deny"
+
+# Basic service rules
+allow_ssh = true
+ssh_port = 22
+ssh_limit = true  # Rate limiting for SSH
+
+allow_http = false
+allow_https = false
+allow_dns = true
+allow_ntp = true
+
+# Custom port rules
+[[modules.firewall.rules]]
+port = 80
+protocol = "tcp"
+action = "allow"
+description = "HTTP"
+
+[[modules.firewall.rules]]
+port = 443
+protocol = "tcp"
+action = "allow"
+description = "HTTPS"
+
+# IP-based rules
+trusted_ips = []
+blocked_ips = []
+
+# Application profiles (UFW)
+application_profiles = ["OpenSSH"]
+
+# Logging
+enable_logging = true
+log_level = "low"  # "off", "low", "medium", "high", "full"
+
+# Advanced settings
+enable_syn_cookies = true
+drop_invalid_packets = true
+reject_ping = false
+
+# -----------------------------------------------------------------------------
+# SYSTEM HARDENING (SYSCTL) MODULE
+# -----------------------------------------------------------------------------
+[modules.sysctl]
+# Network security hardening
+network_hardening = true
+
+# IP forwarding
+disable_ip_forwarding = true
+disable_ipv6_forwarding = true
+
+# ICMP settings
+ignore_icmp_ping = false
+ignore_icmp_redirects = true
+ignore_bogus_icmp_responses = true
+
+# Source routing
+disable_source_routing = true
+
+# SYN flood protection
+enable_syn_cookies = true
+syn_retries = 2
+synack_retries = 2
+
+# TCP settings
+tcp_timestamps = false
+tcp_sack = true
+tcp_window_scaling = true
+
+# Memory protection
+enable_aslr = true
+restrict_core_dumps = true
+restrict_dmesg = true
+
+# Kernel security
+disable_magic_sysrq = true
+restrict_kernel_logs = true
+hide_kernel_pointers = true
+
+# File system security
+protected_hardlinks = true
+protected_symlinks = true
+protected_fifos = true
+
+# Custom sysctl settings
+[modules.sysctl.custom]
+# Example: "net.ipv4.ip_forward" = "0"
+
+# -----------------------------------------------------------------------------
+# CERTIFICATE MANAGEMENT MODULE
+# -----------------------------------------------------------------------------
+[modules.certs]
+# Enable Let's Encrypt certificates
+enable_letsencrypt = false
+
+# ACME client: "acme.sh", "certbot"
+acme_client = "acme.sh"
+
+# Contact email for Let's Encrypt
+email = ""
+
+# Domains to obtain certificates for
+domains = []
+
+# Certificate settings
+key_size = 2048
+auto_renewal = true
+renewal_days = 30  # Renew X days before expiry
+
+# Web server integration
+webserver = ""  # "nginx", "apache", "standalone"
+webroot = "/var/www/html"
+
+# Certificate storage
+cert_dir = "/etc/ssl/certs"
+key_dir = "/etc/ssl/private"
+
+# Additional CA certificates to install
+ca_certificates = []
+
+# OCSP stapling
+enable_ocsp_stapling = true
+
+# -----------------------------------------------------------------------------
+# ZSH MODULE
+# -----------------------------------------------------------------------------
+[modules.zsh]
+# Install Zsh and Oh My Zsh
+install_zsh = true
+install_oh_my_zsh = true
+
+# Theme configuration
+theme = "powerlevel10k"
+install_powerlevel10k = true
+
+# Oh My Zsh plugins
+plugins = [
+    "git",
+    "docker",
+    "kubectl",
+    "aws",
+    "terraform",
+    "ansible",
+    "systemd",
+    "history-substring-search",
+    "zsh-autosuggestions",
+    "zsh-syntax-highlighting"
+]
+
+# Users to configure (empty = configure for admin user)
+configure_users = []
+
+# Custom Zsh configuration
+custom_aliases = [
+    "ll='ls -alF'",
+    "la='ls -A'",
+    "l='ls -CF'",
+    "grep='grep --color=auto'"
+]
+
+# Environment variables
+environment_vars = [
+    "EDITOR=vim",
+    "PAGER=less"
+]
+
+# P10k configuration
+p10k_config = "~/.p10k.zsh"
+
+# -----------------------------------------------------------------------------
+# MOTD MODULE
+# -----------------------------------------------------------------------------
+[modules.motd]
+# Enable dynamic MOTD
+enable_dynamic_motd = true
+
+# MOTD components to show
+show_system_info = true
+show_uptime = true
+show_load_average = true
+show_memory_usage = true
+show_disk_usage = true
+show_network_info = true
+show_updates = true
+show_last_login = true
+show_active_users = true
+show_running_services = true
+
+# Custom banner
+custom_banner = ""
+banner_color = "cyan"
+
+# Update information
+show_security_updates = true
+show_package_count = true
+show_reboot_required = true
+
+# System warnings
+disk_usage_warning = 85  # Percentage
+memory_usage_warning = 90  # Percentage
+load_warning = 5.0
+
+# Services to monitor
+monitored_services = ["ssh", "nginx", "apache2", "mysql", "postgresql", "docker"]
+
+# Custom MOTD scripts directory
+scripts_dir = "/etc/update-motd.d"
+
+# Colors (ANSI color names)
+colors = {
+    header = "cyan",
+    info = "green", 
+    warning = "yellow",
+    error = "red",
+    value = "white"
+}
+
+# -----------------------------------------------------------------------------
+# NETDATA MODULE  
+# -----------------------------------------------------------------------------
+[modules.netdata]
+# Install and configure Netdata
+install_netdata = false
+
+# Installation method: "script", "package", "docker"
+install_method = "script"
+
+# Service configuration
+web_port = 19999
+bind_address = "127.0.0.1"  # "0.0.0.0" for external access
+
+# Data retention
+history_days = 14
+memory_mode = "save"  # "ram", "save", "map", "none"
+
+# Performance settings
+update_every = 1  # seconds
+cpu_freq = 1      # seconds
+
+# Web interface
+enable_web = true
+allow_connections_from = ["localhost", "127.0.0.1"]
+allow_dashboard_from = ["localhost", "127.0.0.1"]
+
+# Notifications
+enable_notifications = false
+notification_methods = []  # ["email", "slack", "discord"]
+
+# Health monitoring
+enable_health_monitoring = true
+health_log_history = 432000  # seconds (5 days)
+
+# Plugins to enable/disable
+plugins = {
+    apps = true,
+    cgroups = true,
+    diskspace = true,
+    proc = true,
+    tc = false,
+    idlejitter = false
+}
+
+# Custom configurations
+[modules.netdata.custom]
+# Custom netdata.conf sections
+
+# =============================================================================
+# WORKFLOW CONFIGURATIONS
+# =============================================================================
+
+# -----------------------------------------------------------------------------
+# ESSENTIAL WORKFLOW
+# -----------------------------------------------------------------------------
+[workflows.essential]
+# Modules to run in essential workflow
+modules = ["update", "hostname", "network", "user", "ssh"]
+
+# Stop on first error
+stop_on_error = true
+
+# Confirm each module
+confirm_modules = true
+
+# Post-workflow actions
+reboot_if_required = true
+
+# -----------------------------------------------------------------------------
+# COMPLETE WORKFLOW  
+# -----------------------------------------------------------------------------
+[workflows.complete]
+# All modules in recommended order
+modules = [
+    "update", "hostname", "network", "user", "ssh", 
+    "firewall", "sysctl", "certs", "zsh", "motd", "netdata"
+]
+
+# Continue on non-critical errors
+stop_on_error = false
+
+# Skip confirmations in auto mode
+confirm_modules = true
+
+# -----------------------------------------------------------------------------
+# SECURITY WORKFLOW
+# -----------------------------------------------------------------------------
+[workflows.security]
+# Security-focused modules
+modules = ["update", "ssh", "firewall", "sysctl", "certs"]
+
+# Always stop on security errors
+stop_on_error = true
+
+# Require confirmation for security changes
+confirm_modules = true
+
+# Verify configuration after each module
+verify_configs = true
+
+# -----------------------------------------------------------------------------
+# DEVELOPMENT WORKFLOW
+# -----------------------------------------------------------------------------
+[workflows.development]
+# Development environment setup
+modules = ["update", "user", "zsh"]
+
+# Install development packages
+enable_dev_packages = true
+
+# Configure development tools
+configure_git = true
+configure_docker = true
+
+# -----------------------------------------------------------------------------
+# MONITORING WORKFLOW
+# -----------------------------------------------------------------------------
+[workflows.monitoring]
+# Monitoring stack setup
+modules = ["update", "netdata", "certs", "firewall"]
+
+# Configure monitoring-specific firewall rules
+monitoring_ports = [19999]
+
+# Enable external access
+external_access = false
+
+# =============================================================================
+# CUSTOM CONFIGURATIONS
+# =============================================================================
+
+# -----------------------------------------------------------------------------
+# CUSTOM KEY-VALUE PAIRS
+# -----------------------------------------------------------------------------
+[custom]
+# Add your own custom configuration values here
+# Example:
+# organization = "My Company"
+# environment = "production"
+# backup_server = "backup.example.com"
+
+# -----------------------------------------------------------------------------
+# ENVIRONMENT-SPECIFIC OVERRIDES
+# -----------------------------------------------------------------------------
+
+# Production environment settings
+[environments.production]
+# Override settings for production
+auto_reboot = false
+confirm_modules = true
+log_level = "warn"
+
+# Development environment settings  
+[environments.development]
+# Override settings for development
+auto_reboot = true
+confirm_modules = false
+log_level = "debug"
+
+# Testing environment settings
+[environments.testing]
+# Override settings for testing
+mode = "dry-run"
+log_level = "debug"

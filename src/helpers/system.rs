@@ -5,6 +5,8 @@ use std::fs;
 use std::process::Command;
 use sysinfo::{DiskExt, System, SystemExt};
 
+pub use missing_helper_stubs::*;
+
 /// Linux distribution types
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub enum Distribution {
@@ -368,4 +370,481 @@ pub fn get_uptime() -> Result<String> {
     } else {
         Ok(format!("{} minutes", minutes))
     }
+}
+
+
+// =============================================================================
+// MISSING FUNCTIONS IN src/helpers/system.rs
+// =============================================================================
+
+/// Check if system reboot is required and optionally prompt user
+/// Called from: src/workflows/mod.rs, src/modules/update.rs
+pub fn check_reboot_needed() -> Result<()> {
+    log_info("Checking if system reboot is required");
+    
+    let reboot_required = is_reboot_required()?;
+    
+    if reboot_required {
+        log_warn("System reboot is required");
+        println!("{}", "⚠ System reboot is required".yellow());
+        
+        if prompt_yes_no("Reboot system now?", false)? {
+            log_info("Initiating system reboot");
+            execute_reboot()?;
+        } else {
+            log_info("Reboot postponed by user");
+            println!("{}", "Remember to reboot later to complete the configuration".yellow());
+        }
+    } else {
+        log_info("No reboot required");
+    }
+    
+    Ok(())
+}
+
+/// Check if reboot is required by examining system files
+fn is_reboot_required() -> Result<bool> {
+    // Check for Debian/Ubuntu reboot-required file
+    if std::path::Path::new("/var/run/reboot-required").exists() {
+        return Ok(true);
+    }
+    
+    // Check for Red Hat/CentOS kernel updates
+    if let Ok(output) = Command::new("needs-restarting").arg("-r").output() {
+        if output.status.code() == Some(1) {
+            return Ok(true);
+        }
+    }
+    
+    // Check if running kernel differs from installed kernel
+    if let Ok(running_kernel) = std::fs::read_to_string("/proc/version") {
+        if let Ok(installed_kernel) = get_installed_kernel_version() {
+            if !running_kernel.contains(&installed_kernel) {
+                return Ok(true);
+            }
+        }
+    }
+    
+    Ok(false)
+}
+
+/// Get the version of the installed kernel
+fn get_installed_kernel_version() -> Result<String> {
+    // Try different methods based on distribution
+    
+    // Method 1: dpkg (Debian/Ubuntu)
+    if let Ok(output) = Command::new("dpkg")
+        .args(&["-l", "linux-image-*"])
+        .output() 
+    {
+        if output.status.success() {
+            let stdout = String::from_utf8_lossy(&output.stdout);
+            // Parse dpkg output for latest kernel version
+            // This is a simplified implementation
+            for line in stdout.lines() {
+                if line.contains("linux-image-") && line.contains("ii") {
+                    if let Some(version) = extract_kernel_version_from_dpkg_line(line) {
+                        return Ok(version);
+                    }
+                }
+            }
+        }
+    }
+    
+    // Method 2: rpm (Red Hat/CentOS)
+    if let Ok(output) = Command::new("rpm")
+        .args(&["-q", "kernel", "--last"])
+        .output()
+    {
+        if output.status.success() {
+            let stdout = String::from_utf8_lossy(&output.stdout);
+            if let Some(first_line) = stdout.lines().next() {
+                if let Some(version) = extract_kernel_version_from_rpm_line(first_line) {
+                    return Ok(version);
+                }
+            }
+        }
+    }
+    
+    Err(FluxError::system("Could not determine installed kernel version"))
+}
+
+/// Extract kernel version from dpkg output line
+fn extract_kernel_version_from_dpkg_line(line: &str) -> Option<String> {
+    // Example line: "ii  linux-image-5.4.0-84-generic  5.4.0-84.94  amd64"
+    let parts: Vec<&str> = line.split_whitespace().collect();
+    if parts.len() >= 2 {
+        let package_name = parts[1];
+        if let Some(version_start) = package_name.find("linux-image-") {
+            let version = &package_name[version_start + "linux-image-".len()..];
+            return Some(version.to_string());
+        }
+    }
+    None
+}
+
+/// Extract kernel version from rpm output line
+fn extract_kernel_version_from_rpm_line(line: &str) -> Option<String> {
+    // Example line: "kernel-5.4.17-2102.201.3.el8uek.x86_64"
+    if let Some(version_start) = line.find("kernel-") {
+        let rest = &line[version_start + "kernel-".len()..];
+        if let Some(arch_pos) = rest.rfind(".x86_64") {
+            let version = &rest[..arch_pos];
+            return Some(version.to_string());
+        }
+    }
+    None
+}
+
+/// Execute system reboot
+fn execute_reboot() -> Result<()> {
+    log_info("Executing system reboot in 10 seconds...");
+    println!("{}", "System will reboot in 10 seconds...".red());
+    
+    // Give users a chance to cancel
+    std::thread::sleep(std::time::Duration::from_secs(10));
+    
+    Command::new("reboot")
+        .output()
+        .map_err(|e| FluxError::command_failed(format!("Failed to execute reboot: {}", e)))?;
+    
+    Ok(())
+}
+
+/// Enhanced service status check with better error handling
+/// Improves existing is_service_active function
+pub fn is_service_active_enhanced(service: &str) -> Result<bool> {
+    // First check if systemd is available
+    if !has_systemd() {
+        return check_service_sysvinit(service);
+    }
+    
+    // Use systemctl to check service status
+    match Command::new("systemctl")
+        .args(&["is-active", service])
+        .output()
+    {
+        Ok(output) => {
+            let status = String::from_utf8_lossy(&output.stdout).trim().to_lowercase();
+            Ok(status == "active")
+        }
+        Err(e) => Err(FluxError::system(format!(
+            "Failed to check service status for {}: {}", service, e
+        )))
+    }
+}
+
+/// Check service status using SysV init (fallback for non-systemd systems)
+fn check_service_sysvinit(service: &str) -> Result<bool> {
+    // Try service command
+    if let Ok(output) = Command::new("service")
+        .args(&[service, "status"])
+        .output()
+    {
+        return Ok(output.status.success());
+    }
+    
+    // Try init.d script directly
+    let init_script = format!("/etc/init.d/{}", service);
+    if std::path::Path::new(&init_script).exists() {
+        if let Ok(output) = Command::new(&init_script)
+            .arg("status")
+            .output()
+        {
+            return Ok(output.status.success());
+        }
+    }
+    
+    Err(FluxError::system(format!(
+        "Could not determine status of service: {}", service
+    )))
+}
+
+/// Get comprehensive system status with additional metrics
+/// Enhances existing get_system_status function
+pub fn get_system_status_enhanced() -> Result<EnhancedSystemStatus> {
+    let basic_status = crate::helpers::system::get_system_status()?;
+    
+    Ok(EnhancedSystemStatus {
+        basic: basic_status,
+        kernel_version: get_running_kernel_version()?,
+        installed_kernel: get_installed_kernel_version().unwrap_or_else(|_| "unknown".to_string()),
+        reboot_required: is_reboot_required()?,
+        security_updates: count_security_updates()?,
+        failed_services: get_failed_services()?,
+        system_load_1min: get_system_load_1min()?,
+        swap_usage: get_swap_usage()?,
+        inodes_usage: get_inodes_usage()?,
+        zombie_processes: count_zombie_processes()?,
+    })
+}
+
+/// Enhanced system status structure
+#[derive(Debug)]
+pub struct EnhancedSystemStatus {
+    pub basic: crate::helpers::system::SystemStatus,
+    pub kernel_version: String,
+    pub installed_kernel: String,
+    pub reboot_required: bool,
+    pub security_updates: u32,
+    pub failed_services: Vec<String>,
+    pub system_load_1min: f64,
+    pub swap_usage: SwapUsage,
+    pub inodes_usage: HashMap<String, InodesUsage>,
+    pub zombie_processes: u32,
+}
+
+#[derive(Debug)]
+pub struct SwapUsage {
+    pub total: u64,
+    pub used: u64,
+    pub free: u64,
+    pub percentage: f64,
+}
+
+#[derive(Debug)]
+pub struct InodesUsage {
+    pub total: u64,
+    pub used: u64,
+    pub free: u64,
+    pub percentage: f64,
+}
+
+/// Get running kernel version
+fn get_running_kernel_version() -> Result<String> {
+    let version = std::fs::read_to_string("/proc/version")?;
+    // Extract version from: "Linux version 5.4.0-84-generic ..."
+    if let Some(start) = version.find("Linux version ") {
+        let rest = &version[start + "Linux version ".len()..];
+        if let Some(end) = rest.find(' ') {
+            return Ok(rest[..end].to_string());
+        }
+    }
+    Err(FluxError::system("Could not parse kernel version"))
+}
+
+/// Count available security updates
+fn count_security_updates() -> Result<u32> {
+    let distro = crate::helpers::system::detect_distro()?;
+    
+    if distro.is_debian_based() {
+        // Check for security updates in apt
+        if let Ok(output) = Command::new("apt")
+            .args(&["list", "--upgradable"])
+            .output()
+        {
+            if output.status.success() {
+                let stdout = String::from_utf8_lossy(&output.stdout);
+                let count = stdout.lines()
+                    .filter(|line| line.contains("-security"))
+                    .count();
+                return Ok(count as u32);
+            }
+        }
+    } else if distro.is_redhat_based() {
+        // Check for security updates with yum/dnf
+        let pkg_manager = if which::which("dnf").is_ok() { "dnf" } else { "yum" };
+        
+        if let Ok(output) = Command::new(pkg_manager)
+            .args(&["updateinfo", "list", "security"])
+            .output()
+        {
+            if output.status.success() {
+                let stdout = String::from_utf8_lossy(&output.stdout);
+                let count = stdout.lines()
+                    .filter(|line| !line.trim().is_empty() && !line.starts_with("Last metadata"))
+                    .count();
+                return Ok(count as u32);
+            }
+        }
+    }
+    
+    Ok(0)
+}
+
+/// Get list of failed systemd services
+fn get_failed_services() -> Result<Vec<String>> {
+    if !has_systemd() {
+        return Ok(Vec::new());
+    }
+    
+    let output = Command::new("systemctl")
+        .args(&["--failed", "--no-legend", "--no-pager"])
+        .output()
+        .map_err(|e| FluxError::system(format!("Failed to get failed services: {}", e)))?;
+    
+    if !output.status.success() {
+        return Ok(Vec::new());
+    }
+    
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    let failed_services: Vec<String> = stdout
+        .lines()
+        .filter_map(|line| {
+            let parts: Vec<&str> = line.split_whitespace().collect();
+            if !parts.is_empty() {
+                Some(parts[0].to_string())
+            } else {
+                None
+            }
+        })
+        .collect();
+    
+    Ok(failed_services)
+}
+
+/// Get 1-minute system load average
+fn get_system_load_1min() -> Result<f64> {
+    let loadavg = std::fs::read_to_string("/proc/loadavg")?;
+    let parts: Vec<&str> = loadavg.split_whitespace().collect();
+    
+    if !parts.is_empty() {
+        parts[0].parse::<f64>()
+            .map_err(|e| FluxError::parse(format!("Failed to parse load average: {}", e)))
+    } else {
+        Err(FluxError::system("Could not read load average"))
+    }
+}
+
+/// Get swap usage information
+fn get_swap_usage() -> Result<SwapUsage> {
+    let meminfo = std::fs::read_to_string("/proc/meminfo")?;
+    
+    let mut swap_total = 0u64;
+    let mut swap_free = 0u64;
+    
+    for line in meminfo.lines() {
+        if line.starts_with("SwapTotal:") {
+            swap_total = parse_meminfo_value(line)?;
+        } else if line.starts_with("SwapFree:") {
+            swap_free = parse_meminfo_value(line)?;
+        }
+    }
+    
+    let swap_used = swap_total.saturating_sub(swap_free);
+    let percentage = if swap_total > 0 {
+        (swap_used as f64 / swap_total as f64) * 100.0
+    } else {
+        0.0
+    };
+    
+    Ok(SwapUsage {
+        total: swap_total * 1024, // Convert from KB to bytes
+        used: swap_used * 1024,
+        free: swap_free * 1024,
+        percentage,
+    })
+}
+
+/// Parse memory info value from /proc/meminfo
+fn parse_meminfo_value(line: &str) -> Result<u64> {
+    let parts: Vec<&str> = line.split_whitespace().collect();
+    if parts.len() >= 2 {
+        parts[1].parse::<u64>()
+            .map_err(|e| FluxError::parse(format!("Failed to parse meminfo value: {}", e)))
+    } else {
+        Err(FluxError::parse("Invalid meminfo line format"))
+    }
+}
+
+/// Get inode usage for all mounted filesystems
+fn get_inodes_usage() -> Result<HashMap<String, InodesUsage>> {
+    let output = Command::new("df")
+        .args(&["-i"])
+        .output()
+        .map_err(|e| FluxError::system(format!("Failed to get inode usage: {}", e)))?;
+    
+    if !output.status.success() {
+        return Err(FluxError::command_failed("df command failed"));
+    }
+    
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    let mut usage_map = HashMap::new();
+    
+    for line in stdout.lines().skip(1) { // Skip header
+        if let Some(inode_usage) = parse_df_inode_line(line) {
+            usage_map.insert(inode_usage.0, inode_usage.1);
+        }
+    }
+    
+    Ok(usage_map)
+}
+
+/// Parse df -i output line
+fn parse_df_inode_line(line: &str) -> Option<(String, InodesUsage)> {
+    let parts: Vec<&str> = line.split_whitespace().collect();
+    
+    if parts.len() >= 6 {
+        let filesystem = parts[0];
+        if let (Ok(total), Ok(used), Ok(free)) = (
+            parts[1].parse::<u64>(),
+            parts[2].parse::<u64>(), 
+            parts[3].parse::<u64>()
+        ) {
+            let percentage = if total > 0 {
+                (used as f64 / total as f64) * 100.0
+            } else {
+                0.0
+            };
+            
+            let usage = InodesUsage {
+                total,
+                used,
+                free,
+                percentage,
+            };
+            
+            return Some((filesystem.to_string(), usage));
+        }
+    }
+    
+    None
+}
+
+/// Count zombie processes
+fn count_zombie_processes() -> Result<u32> {
+    let stat = std::fs::read_to_string("/proc/stat")?;
+    
+    for line in stat.lines() {
+        if line.starts_with("processes") {
+            // This is a simplified implementation
+            // In reality, you'd need to count processes in 'Z' state from /proc/*/stat
+            return count_zombie_processes_detailed();
+        }
+    }
+    
+    Ok(0)
+}
+
+/// Count zombie processes by examining /proc/*/stat
+fn count_zombie_processes_detailed() -> Result<u32> {
+    let mut zombie_count = 0;
+    
+    if let Ok(proc_entries) = std::fs::read_dir("/proc") {
+        for entry in proc_entries.flatten() {
+            if let Ok(file_name) = entry.file_name().into_string() {
+                if file_name.chars().all(|c| c.is_ascii_digit()) {
+                    // This is a PID directory
+                    let stat_path = format!("/proc/{}/stat", file_name);
+                    if let Ok(stat_content) = std::fs::read_to_string(&stat_path) {
+                        if is_zombie_process(&stat_content) {
+                            zombie_count += 1;
+                        }
+                    }
+                }
+            }
+        }
+    }
+    
+    Ok(zombie_count)
+}
+
+/// Check if process is a zombie based on /proc/PID/stat content
+fn is_zombie_process(stat_content: &str) -> bool {
+    let parts: Vec<&str> = stat_content.split_whitespace().collect();
+    // Process state is the third field (after PID and command)
+    if parts.len() >= 3 {
+        return parts[2] == "Z";
+    }
+    false
 }

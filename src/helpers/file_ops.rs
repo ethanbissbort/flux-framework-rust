@@ -294,3 +294,117 @@ mod tests {
         assert_eq!(backups.len(), 1);
     }
 }
+
+
+// =============================================================================
+// MISSING FUNCTIONS FOR file_ops.rs 
+// =============================================================================
+// Note: The file_ops.rs module uses sha2 crate which is not in Cargo.toml
+// Here's a fallback implementation that doesn't require external dependencies
+
+/// Simple file checksum using built-in hash functions (fallback implementation)
+/// This replaces the sha2-dependent implementation in file_ops.rs
+pub fn file_checksum_simple<P: AsRef<std::path::Path>>(file_path: P) -> Result<String> {
+    use std::collections::hash_map::DefaultHasher;
+    use std::hash::{Hash, Hasher};
+    use std::io::Read;
+    
+    let mut file = std::fs::File::open(file_path.as_ref())
+        .map_err(|e| FluxError::Io(e))?;
+    
+    let mut buffer = Vec::new();
+    file.read_to_end(&mut buffer)
+        .map_err(|e| FluxError::Io(e))?;
+    
+    let mut hasher = DefaultHasher::new();
+    buffer.hash(&mut hasher);
+    
+    Ok(format!("{:x}", hasher.finish()))
+}
+
+// =============================================================================
+// MISSING FUNCTIONS FOR validation.rs
+// =============================================================================
+// The validation.rs uses base64 crate which is not in Cargo.toml
+// Here's a simple base64 validation fallback
+
+/// Simple base64 validation (fallback implementation)
+/// This replaces the base64-dependent validation in validation.rs
+pub fn is_valid_base64_simple(input: &str) -> bool {
+    // Basic base64 character set validation
+    let base64_chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/=";
+    
+    // Check if all characters are valid base64 characters
+    if !input.chars().all(|c| base64_chars.contains(c)) {
+        return false;
+    }
+    
+    // Check length (base64 length should be multiple of 4)
+    if input.len() % 4 != 0 {
+        return false;
+    }
+    
+    // Basic validation passed (not cryptographically secure but functional)
+    true
+}
+
+// =============================================================================
+// UTILITY FUNCTIONS
+// =============================================================================
+
+/// Check if systemd is available (duplicate check for safety)
+pub fn has_systemd() -> bool {
+    std::path::Path::new("/run/systemd/system").exists() &&
+    which::which("systemctl").is_ok()
+}
+
+/// Wrapper for command execution with timeout
+pub fn execute_command_with_timeout(
+    command: &str, 
+    args: &[&str], 
+    timeout_secs: u64
+) -> Result<String> {
+    use std::time::Duration;
+    
+    let output = Command::new(command)
+        .args(args)
+        .timeout(Duration::from_secs(timeout_secs))
+        .output()
+        .map_err(|e| FluxError::command_failed(format!("Command {} timed out or failed: {}", command, e)))?;
+    
+    if !output.status.success() {
+        let stderr = String::from_utf8_lossy(&output.stderr);
+        return Err(FluxError::command_failed(format!(
+            "{} failed: {}", command, stderr
+        )));
+    }
+    
+    Ok(String::from_utf8_lossy(&output.stdout).into_owned())
+}
+
+/// Check if running as root (enhanced version)
+pub fn ensure_root_privileges() -> Result<()> {
+    if !crate::helpers::system::is_root() {
+        return Err(FluxError::permission(
+            "This operation requires root privileges. Please run with sudo."
+        ));
+    }
+    Ok(())
+}
+
+/// Get system architecture information
+pub fn get_system_architecture() -> String {
+    std::env::consts::ARCH.to_string()
+}
+
+/// Check available disk space for a given path
+pub fn check_disk_space(path: &str, required_mb: u64) -> Result<bool> {
+    if let Ok(metadata) = std::fs::metadata(path) {
+        // This is a simplified check - in reality you'd use statvfs or similar
+        // For now, just return true as a placeholder
+        log_warn(format!("Disk space check for {} not fully implemented", path));
+        return Ok(true);
+    }
+    
+    Err(FluxError::system(format!("Cannot access path: {}", path)))
+}

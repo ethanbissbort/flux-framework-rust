@@ -1,0 +1,61 @@
+[global]
+mode = "interactive"
+log_level = "info"
+
+[update]
+pre_update = true
+auto_security_updates = true
+extra_repos = []
+
+[network]
+dns = ["1.1.1.1", "8.8.8.8"]
+
+[network.static_ipv4]
+iface = ""
+address = ""
+gateway = ""
+
+[[network.vlans]]
+id = 0
+iface = ""
+address = ""
+
+[hostname]
+set_hostname = "flux-node"
+fqdn = "flux-node.example.com"
+
+[user]
+create_user = "devops"
+uid = 1001
+sudo = true
+ssh_keys = []
+
+[ssh]
+port = 22
+permit_root_login = false
+password_auth = false
+allow_groups = ["sshusers"]
+
+[firewall]
+backend = "ufw"
+open_ports = [22]
+
+[sysctl]
+kernel_params = { "net.ipv4.ip_forward" = 0, "net.ipv4.tcp_syncookies" = 1 }
+
+[certs]
+le_domains = []
+email = "admin@example.com"
+
+[zsh]
+install_oh_my_zsh = true
+theme = "powerlevel10k/powerlevel10k"
+
+[motd]
+show_cpu_info = true
+show_mem_info = true
+custom_message = "Managed by Flux Framework"
+
+[netdata]
+install = true
+auth_token = ""

@@ -1,33 +1,56 @@
-// src/workflows/complete.rs
-// Full installation workflow (everything)
+use crate::config::Config;
+use crate::error::Result;
+use crate::workflows::{BaseWorkflow, Workflow};
+use async_trait::async_trait;
 
-pub struct CompleteWorkflow {
-    base: WorkflowBase,
-}
+/// Complete system provisioning workflow
+pub struct CompleteWorkflow;
 
-impl CompleteWorkflow {
-    pub fn new() -> Self {
-        let info = WorkflowInfo {
-            name: "complete".to_string(),
-            description: "Full system provisioning (essential + extras)".to_string(),
-            version: "0.1.0".to_string(),
-            author: "Flux Contributors".to_string(),
-        };
-        Self { base: WorkflowBase { info } }
-    }
-}
-
+#[async_trait]
 impl Workflow for CompleteWorkflow {
-    fn name(&self) -> &str { &self.base.info.name }
-    fn description(&self) -> &str { &self.base.info.description }
-    fn version(&self) -> &str { &self.base.info.version }
-    fn help(&self) -> String {
-        format!("{} workflow is not yet implemented.", self.name())
+    fn name(&self) -> &str {
+        "complete"
     }
 
-    fn execute(&self, _config: &Config) -> Result<()> {
-        Err(FluxError::Workflow(format!("{} workflow not implemented", self.name())))
+    fn description(&self) -> &str {
+        "Complete system provisioning with all modules (updates, network, security, user tools)"
+    }
+
+    fn modules(&self) -> Vec<String> {
+        vec![
+            "update".to_string(),
+            "hostname".to_string(),
+            "network".to_string(),
+            "firewall".to_string(),
+            "ssh".to_string(),
+            "sysctl".to_string(),
+            "certs".to_string(),
+            "user".to_string(),
+            "zsh".to_string(),
+            "motd".to_string(),
+            "netdata".to_string(),
+        ]
+    }
+
+    async fn execute(&self, config: &Config) -> Result<()> {
+        let base = BaseWorkflow::new(
+            self.name(),
+            self.description(),
+            vec![
+                "update",
+                "hostname",
+                "network",
+                "firewall",
+                "ssh",
+                "sysctl",
+                "certs",
+                "user",
+                "zsh",
+                "motd",
+                "netdata",
+            ],
+        );
+
+        base.execute_modules(config).await
     }
 }
-
-// ----------------------------------------------------------

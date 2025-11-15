@@ -156,9 +156,9 @@ pub struct ModuleBase {
 impl ModuleBase {
     /// Create argument parser with common options
     pub fn create_args_parser(&self) -> clap::Command {
-        clap::Command::new(&self.info.name)
-            .about(&self.info.description)
-            .version(&self.info.version)
+        clap::Command::new(self.info.name.clone().leak() as &str)
+            .about(self.info.description.clone().leak() as &str)
+            .version(self.info.version.clone().leak() as &str)
             .arg(
                 clap::Arg::new("help")
                     .short('h')

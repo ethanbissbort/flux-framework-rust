@@ -1,11 +1,12 @@
 use crate::error::{FluxError, Result};
+use crate::helpers::logging::{log_info, log_warn};
+use crate::helpers::user_input::prompt_yes_no;
+use colored::Colorize;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::fs;
 use std::process::Command;
-use sysinfo::{DiskExt, System, SystemExt};
-
-pub use missing_helper_stubs::*;
+use sysinfo::System;
 
 /// Linux distribution types
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -133,33 +134,33 @@ pub fn get_system_info() -> Result<sysinfo::System> {
 
 /// Get hostname
 pub fn get_hostname() -> Result<String> {
-    hostname::get()
+    let hostname = hostname::get()
         .map_err(|e| FluxError::system(format!("Failed to get hostname: {}", e)))?
         .to_string_lossy()
-        .into_owned()
-        .into()
+        .into_owned();
+    Ok(hostname)
 }
 
 /// Get system status
 pub fn get_system_status() -> Result<SystemStatus> {
     let mut sys = System::new_all();
     sys.refresh_all();
-    
+
     // OS information
     let os_info = format!(
         "{} {}",
-        sys.name().unwrap_or_else(|| "Unknown".to_string()),
-        sys.os_version().unwrap_or_else(|| "".to_string())
+        System::name().unwrap_or_else(|| "Unknown".to_string()),
+        System::os_version().unwrap_or_else(|| "".to_string())
     );
-    
-    let kernel_version = sys.kernel_version().unwrap_or_else(|| "Unknown".to_string());
+
+    let kernel_version = System::kernel_version().unwrap_or_else(|| "Unknown".to_string());
     let architecture = std::env::consts::ARCH.to_string();
     let hostname = get_hostname()?;
-    
+
     // CPU load
-    let load_avg = sys.load_average();
+    let load_avg = System::load_average();
     let cpu_load = format!("{:.2} {:.2} {:.2}", load_avg.one, load_avg.five, load_avg.fifteen);
-    
+
     // Memory usage
     let total_mem = sys.total_memory();
     let used_mem = sys.used_memory();
@@ -170,10 +171,12 @@ pub fn get_system_status() -> Result<SystemStatus> {
         total_mem as f64 / 1024.0 / 1024.0 / 1024.0,
         mem_percent
     );
-    
+
     // Disk usage for root partition
+    use sysinfo::Disks;
     let mut disk_usage = "Unknown".to_string();
-    for disk in sys.disks() {
+    let disks = Disks::new_with_refreshed_list();
+    for disk in &disks {
         if disk.mount_point() == std::path::Path::new("/") {
             let total = disk.total_space();
             let available = disk.available_space();
@@ -354,10 +357,47 @@ pub fn command_exists(command: &str) -> bool {
     which::which(command).is_ok()
 }
 
+/// Check if a command exists and return Result
+pub fn check_command(command: &str) -> Result<bool> {
+    Ok(which::which(command).is_ok())
+}
+
+/// Get OS information as a string
+pub fn get_os_info() -> Result<String> {
+    let os_name = System::name().unwrap_or_else(|| "Unknown".to_string());
+    let os_version = System::os_version().unwrap_or_else(|| "".to_string());
+    let kernel_version = System::kernel_version().unwrap_or_else(|| "Unknown".to_string());
+
+    Ok(format!("{} {} (kernel {})", os_name, os_version, kernel_version))
+}
+
+/// Restart a systemd service
+pub fn restart_service(service: &str) -> Result<()> {
+    if !has_systemd() {
+        return Err(FluxError::unsupported("systemd not available"));
+    }
+
+    log_info(&format!("Restarting service: {}", service));
+
+    let output = Command::new("systemctl")
+        .args(&["restart", service])
+        .output()
+        .map_err(|e| FluxError::command_failed(format!("Failed to restart {}: {}", service, e)))?;
+
+    if !output.status.success() {
+        let stderr = String::from_utf8_lossy(&output.stderr);
+        return Err(FluxError::command_failed(format!(
+            "Failed to restart {}: {}",
+            service, stderr
+        )));
+    }
+
+    Ok(())
+}
+
 /// Get system uptime
 pub fn get_uptime() -> Result<String> {
-    let sys = System::new();
-    let uptime_seconds = sys.uptime();
+    let uptime_seconds = System::uptime();
     
     let days = uptime_seconds / 86400;
     let hours = (uptime_seconds % 86400) / 3600;

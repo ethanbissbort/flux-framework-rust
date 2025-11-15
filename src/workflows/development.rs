@@ -1,33 +1,36 @@
-// src/workflows/development.rs
-// Developer-oriented provisioning
+use crate::config::Config;
+use crate::error::Result;
+use crate::workflows::{BaseWorkflow, Workflow};
+use async_trait::async_trait;
 
-pub struct DevelopmentWorkflow {
-    base: WorkflowBase,
-}
+/// Development environment workflow
+pub struct DevelopmentWorkflow;
 
-impl DevelopmentWorkflow {
-    pub fn new() -> Self {
-        let info = WorkflowInfo {
-            name: "development".to_string(),
-            description: "Create user + dev packages + docker".to_string(),
-            version: "0.1.0".to_string(),
-            author: "Flux Contributors".to_string(),
-        };
-        Self { base: WorkflowBase { info } }
-    }
-}
-
+#[async_trait]
 impl Workflow for DevelopmentWorkflow {
-    fn name(&self) -> &str { &self.base.info.name }
-    fn description(&self) -> &str { &self.base.info.description }
-    fn version(&self) -> &str { &self.base.info.version }
-    fn help(&self) -> String {
-        format!("{} workflow is not yet implemented.", self.name())
+    fn name(&self) -> &str {
+        "development"
     }
 
-    fn execute(&self, _config: &Config) -> Result<()> {
-        Err(FluxError::Workflow(format!("{} workflow not implemented", self.name())))
+    fn description(&self) -> &str {
+        "Development environment setup: user creation, ZSH, and development tools"
+    }
+
+    fn modules(&self) -> Vec<String> {
+        vec![
+            "user".to_string(),
+            "zsh".to_string(),
+            "certs".to_string(),
+        ]
+    }
+
+    async fn execute(&self, config: &Config) -> Result<()> {
+        let base = BaseWorkflow::new(
+            self.name(),
+            self.description(),
+            vec!["user", "zsh", "certs"],
+        );
+
+        base.execute_modules(config).await
     }
 }
-
-// ----------------------------------------------------------

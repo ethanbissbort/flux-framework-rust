@@ -31,17 +31,29 @@ pub fn get_network_interfaces() -> Result<Vec<NetworkInterface>> {
             }
         }
         
+        // MTU is not available in pnet's NetworkInterface, try to read from sysfs
+        let mtu = get_interface_mtu(&interface.name).unwrap_or(0);
+
         interfaces.push(NetworkInterface {
             name: interface.name.clone(),
             mac: interface.mac.map(|m| m.to_string()).unwrap_or_default(),
             ips,
             is_up: interface.is_up(),
             is_loopback: interface.is_loopback(),
-            mtu: interface.mtu,
+            mtu,
         });
     }
     
     Ok(interfaces)
+}
+
+/// Get MTU for a network interface from sysfs
+fn get_interface_mtu(name: &str) -> Result<u32> {
+    let mtu_path = format!("/sys/class/net/{}/mtu", name);
+    let mtu_str = std::fs::read_to_string(mtu_path)
+        .map_err(|e| FluxError::system(format!("Failed to read MTU: {}", e)))?;
+    mtu_str.trim().parse::<u32>()
+        .map_err(|e| FluxError::parse(format!("Failed to parse MTU: {}", e)))
 }
 
 /// Get specific network interface

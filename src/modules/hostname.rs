@@ -542,10 +542,15 @@ impl Module for HostnameModule {
     
     async fn execute(&self, args: Vec<String>, config: &Config) -> Result<()> {
         let ctx = ModuleContext::new(config, args.clone());
-        
+
+        let args_strs: Vec<&str> = args.iter().map(|s| s.as_str()).collect();
+        let mut all_args = vec!["hostname"];
+        all_args.extend(args_strs);
+
         let matches = self.create_cli()
-            .try_get_matches_from(["hostname"].iter().chain(args.iter()))?;
-        
+            .try_get_matches_from(all_args)
+            .map_err(|e| FluxError::validation(format!("Invalid arguments: {}", e)))?;
+
         self.execute_hostname(&matches, &ctx).await
     }
 }

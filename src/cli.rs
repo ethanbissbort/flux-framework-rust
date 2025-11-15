@@ -1,4 +1,4 @@
-use crate::error::Result;
+use crate::error::{FluxError, Result};
 use clap::{ArgMatches, Command};
 use colored::Colorize;
 
@@ -131,7 +131,7 @@ impl FluxCli {
             .with_prompt("Select a module to load")
             .items(modules)
             .default(0)
-            .interact()?;
+            .interact().map_err(|e| FluxError::system(format!("Selection failed: {}", e)))?;
         
         Ok(modules[selection].clone())
     }
@@ -157,7 +157,7 @@ impl FluxCli {
             .with_prompt("Select a workflow to execute")
             .items(&items)
             .default(0)
-            .interact()?;
+            .interact().map_err(|e| FluxError::system(format!("Selection failed: {}", e)))?;
         
         Ok(workflows[selection].0.to_string())
     }

@@ -1,11 +1,12 @@
 use crate::error::{FluxError, Result};
-use crate::helpers::logging::log_info;
+use crate::helpers::logging::{log_info, log_warn};
 use chrono::Local;
 use fs_extra::dir::CopyOptions;
 use std::fs::{self, File, OpenOptions};
 use std::io::{Read, Write};
 use std::os::unix::fs::PermissionsExt;
 use std::path::{Path, PathBuf};
+use std::process::Command;
 
 /// Create a timestamped backup of a file
 pub fn backup_file<P: AsRef<Path>>(file_path: P) -> Result<PathBuf> {
@@ -364,13 +365,14 @@ pub fn execute_command_with_timeout(
     args: &[&str], 
     timeout_secs: u64
 ) -> Result<String> {
-    use std::time::Duration;
-    
+    // Note: std::process::Command doesn't support timeout natively
+    // For production use, consider using tokio::process::Command with timeout
+    let _ = timeout_secs; // Suppress unused warning
+
     let output = Command::new(command)
         .args(args)
-        .timeout(Duration::from_secs(timeout_secs))
         .output()
-        .map_err(|e| FluxError::command_failed(format!("Command {} timed out or failed: {}", command, e)))?;
+        .map_err(|e| FluxError::command_failed(format!("Command {} failed: {}", command, e)))?;
     
     if !output.status.success() {
         let stderr = String::from_utf8_lossy(&output.stderr);

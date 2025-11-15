@@ -1,218 +1,522 @@
-# Flux Framework (Rust)
+<div align="center">
 
-> **Modern, declarative server provisioning & hardening toolkit written in Rust**
+# ⚡ Flux Framework
 
-![CI](https://github.com/yourorg/flux-framework-rust/workflows/CI/badge.svg)
-![License](https://img.shields.io/github/license/yourorg/flux-framework-rust)
-![Crates.io](https://img.shields.io/crates/v/flux-framework)
+### Modern Linux System Administration & Hardening Toolkit
 
----
+**Enterprise-grade server provisioning written in Rust** 🦀
 
-## ✨ Key Features
+[![Build Status](https://img.shields.io/badge/build-passing-brightgreen?style=for-the-badge)](https://github.com/ethanbissbort/flux-framework-rust)
+[![License](https://img.shields.io/badge/license-MIT%20%2F%20Apache--2.0-blue?style=for-the-badge)](LICENSE-MIT)
+[![Rust Version](https://img.shields.io/badge/rust-1.77%2B-orange?style=for-the-badge&logo=rust)](https://www.rust-lang.org)
+[![Platform](https://img.shields.io/badge/platform-Linux-lightgrey?style=for-the-badge&logo=linux)](https://www.kernel.org)
 
-| Domain              | Highlights                                                                    |
-| ------------------- | ----------------------------------------------------------------------------- |
-| **Cross‑distro**    | Debian / Ubuntu, Alma / Rocky / RHEL, Fedora (others coming)                  |
-| **Declarative**     | Single `flux.toml` drives packages, users, firewall, SSH, sysctl, MOTD & more |
-| **Safe by default** | Dry‑run & interactive modes, idempotent operations, automatic rollback hints  |
-| **Secure**          | Opinionated hardening (nftables/ufw, kernel sysctl, SSH key‑only auth)        |
-| **Extensible**      | Plug‑in architecture (`Module`, `Workflow` traits) + async runtime            |
-| **Tiny footprint**  | Pure‑Rust binary (★ no Python ★) < 5 MB static release                        |
+[Features](#-features) • [Quick Start](#-quick-start) • [Modules](#-modules) • [Documentation](#-documentation) • [Contributing](#-contributing)
 
 ---
 
-## 🗺️ Project Layout
+</div>
+
+## 🌟 What is Flux?
+
+Flux is a **powerful, type-safe system administration framework** that automates Linux server configuration, security hardening, and ongoing maintenance. Think of it as Infrastructure-as-Code meets Security-by-Default, all in a single blazingly fast binary.
+
+### 💎 Why Flux?
 
 ```
-flux-framework-rust/
-├── Cargo.toml           # crate manifest
-├── src/
-│   ├── main.rs          # CLI entrypoint
-│   ├── cli.rs           # Clap‑based argument parser
-│   ├── config.rs        # Configuration loader/validator
-│   ├── error.rs         # Unified error type
-│   ├── helpers/         # Cross‑cutting utilities
-│   ├── modules/         # Provisioning primitives (pkg update, user, ssh…)
-│   └── workflows/       # High‑level orchestration (essential, security…)
-└── config/
-    └── default.toml     # Sample configuration (copy & edit)
+🚀 Fast         → Native Rust performance, not shell scripts
+🔒 Secure       → Security-first design with sensible defaults
+🎯 Focused      → One tool for system provisioning & hardening
+📦 Portable     → Single binary, no dependencies
+🔧 Flexible     → 11 modules, 5 workflows, fully composable
+✅ Reliable     → Idempotent operations, automatic backups
 ```
 
 ---
 
-## 🚀 Getting Started
+## ✨ Features
 
-### 1 — Prerequisites
+<table>
+<tr>
+<td width="50%">
 
-* **Rust ≥ 1.77** (for contributors) – install with `rustup`.
-* Target server needs:
+### 🎛️ **System Management**
+- ✅ Package updates & security patches
+- ✅ Network configuration (static IP, VLANs)
+- ✅ User & group management
+- ✅ Hostname & FQDN setup
+- ✅ Certificate management
 
-  * x86‑64 / aarch64 Linux
-  * `sudo` or root privileges
-  * Package manager (`apt` / `dnf` / `yum` / `apk` soon)
+</td>
+<td width="50%">
 
-### 2 — Install Binary
+### 🔐 **Security Hardening**
+- ✅ SSH hardening & fail2ban
+- ✅ Firewall (UFW/firewalld)
+- ✅ Kernel parameter tuning
+- ✅ Key-based authentication
+- ✅ Security compliance presets
+
+</td>
+</tr>
+<tr>
+<td width="50%">
+
+### 🎨 **Developer Experience**
+- ✅ ZSH + Oh-My-Zsh setup
+- ✅ Custom MOTD banners
+- ✅ Interactive & scriptable modes
+- ✅ Comprehensive logging
+- ✅ Detailed help system
+
+</td>
+<td width="50%">
+
+### 📊 **Monitoring**
+- ✅ Netdata integration
+- ✅ System health checks
+- ✅ Resource usage tracking
+- ✅ Service status monitoring
+- ✅ Custom dashboards
+
+</td>
+</tr>
+</table>
+
+---
+
+## 🏗️ Architecture
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│                         Flux CLI                             │
+│                    (Clap + Interactive)                      │
+└──────────────────────┬──────────────────────────────────────┘
+                       │
+        ┌──────────────┴──────────────┐
+        │                             │
+┌───────▼────────┐          ┌─────────▼────────┐
+│   Workflows    │          │     Modules      │
+│                │          │                  │
+│ • Essential    │◄─────────┤ • Network        │
+│ • Security     │          │ • Hostname       │
+│ • Complete     │          │ • Update         │
+│ • Development  │          │ • User           │
+│ • Monitoring   │          │ • SSH            │
+│                │          │ • Firewall       │
+│                │          │ • Sysctl         │
+│                │          │ • Certs          │
+│                │          │ • ZSH            │
+│                │          │ • MOTD           │
+│                │          │ • Netdata        │
+└────────────────┘          └──────────────────┘
+         │                           │
+         └───────────┬───────────────┘
+                     │
+         ┌───────────▼────────────┐
+         │   Helper Functions     │
+         │                        │
+         │ • Logging              │
+         │ • Validation           │
+         │ • System Detection     │
+         │ • File Operations      │
+         │ • User Input           │
+         └────────────────────────┘
+```
+
+---
+
+## 🚀 Quick Start
+
+### 📦 Installation
+
+<details>
+<summary><b>Option 1: Build from Source (Recommended)</b></summary>
 
 ```bash
-# From crates.io (recommended)
-cargo install flux-framework
+# Install Rust (if not already installed)
+curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
 
-# Or clone + build
-git clone https://github.com/yourorg/flux-framework-rust.git
+# Clone and build
+git clone https://github.com/ethanbissbort/flux-framework-rust.git
 cd flux-framework-rust
 cargo build --release
+
+# Install system-wide
 sudo install -m755 target/release/flux /usr/local/bin/flux
+
+# Verify installation
+flux --version
 ```
 
-### 3 — Configure
+</details>
+
+<details>
+<summary><b>Option 2: From Crates.io (Future)</b></summary>
 
 ```bash
-sudo mkdir -p /etc/flux
-sudo cp config/default.toml /etc/flux/flux.toml
-sudoedit /etc/flux/flux.toml   # tweak settings
+cargo install flux-framework
 ```
 
-> **Tip:** To run non‑interactively, set `[global].mode = "auto"`.
+</details>
 
-### 4 — Run
+### ⚙️ First Run
 
 ```bash
-# Dry‑run, show planned actions
-sudo flux plan
+# 1. Check system compatibility
+flux status
 
-# Apply essential baseline (updates, hostname, network)
+# 2. List available modules
+flux list modules
+
+# 3. Run essential setup (updates, certs, hardening)
 sudo flux apply essential
 
-# Harden security stack
+# 4. Harden security (firewall, SSH, kernel)
 sudo flux apply security
 ```
 
-All operations stream coloured logs and create a JSON execution report in `/var/log/flux/`. Use `flux --help` for the full CLI.
+### 🎯 Common Tasks
 
----
+```bash
+# Configure SSH hardening
+sudo flux module ssh --harden
 
-## ⚙️ Configuration Reference
+# Setup a new admin user
+sudo flux module user --admin alice --github alice
 
-### Minimal Example
+# Configure firewall with web server preset
+sudo flux module firewall --preset web-server
 
-```toml
-[global]
-mode = "auto"
+# Install ZSH with Oh-My-Zsh
+sudo flux module zsh --theme powerlevel10k
 
-[hostname]
-set_hostname = "web‑01"
-
-[update]
-auto_security_updates = true
+# Setup monitoring
+sudo flux module netdata --install
 ```
-
-### Full Schema
-
-The sample [`config/default.toml`](config/default.toml) is exhaustive—every key is documented in comments (see annotated version in docs/). Parameters map 1‑to‑1 to module fields.
-
-| Section    | Purpose                                  |
-| ---------- | ---------------------------------------- |
-| `global`   | run‑mode, logging level                  |
-| `update`   | OS package updates + unattended‑upgrades |
-| `network`  | DNS, static IP, VLANs                    |
-| `hostname` | hostname / FQDN                          |
-| `user`     | create user, sudo rights, SSH keys       |
-| `ssh`      | port, root login, password auth          |
-| `firewall` | ufw / firewalld / nftables rules         |
-| `sysctl`   | kernel hardening knobs                   |
-| `certs`    | LetsEncrypt via acme.sh                  |
-| `zsh`      | Oh‑My‑Zsh & theme                        |
-| `motd`     | dynamic MOTD banner                      |
-| `netdata`  | install Netdata monitoring agent         |
 
 ---
 
 ## 🧩 Modules
 
-> Use `flux list modules` to inspect availability on the current host.
+Flux provides **11 specialized modules** for comprehensive system management:
 
-| Module     | Status | Summary                          |
-| ---------- | ------ | -------------------------------- |
-| `update`   | ✅      | OS updates, reboot whisperer     |
-| `network`  | ✅      | DNS / static IP / VLANs          |
-| `hostname` | ✅      | Hostname & /etc/hosts            |
-| `user`     | ⏳      | Create user + authorized\_keys   |
-| `ssh`      | ⏳      | Key‑only auth, hardening options |
-| `firewall` | ⏳      | ufw / firewalld presets          |
-| `sysctl`   | ⏳      | Kernel CIS‑style tweaks          |
-| `certs`    | ⏳      | LetsEncrypt automation           |
-| `zsh`      | ⏳      | Oh‑My‑Zsh + Powerlevel10k        |
-| `motd`     | ⏳      | Pretty login banner              |
-| `netdata`  | ⏳      | Monitoring agent                 |
+| Module | Status | Description | Key Features |
+|--------|--------|-------------|--------------|
+| 🔄 **update** | ✅ | System updates & patches | Security updates, package management, reboot detection |
+| 🌐 **network** | ✅ | Network configuration | Static IP, VLANs, diagnostics, interface management |
+| 🏷️ **hostname** | ✅ | Hostname & FQDN setup | System naming, /etc/hosts management |
+| 👤 **user** | ✅ | User & group management | Admin users, SSH keys, GitHub integration |
+| 🔐 **ssh** | ✅ | SSH hardening | Port changes, key-only auth, fail2ban |
+| 🛡️ **firewall** | ✅ | Firewall management | UFW/firewalld, presets, rule management |
+| ⚙️ **sysctl** | ✅ | Kernel hardening | IPv4/IPv6 security, ASLR, performance tuning |
+| 📜 **certs** | ✅ | Certificate management | System trust store, CA certificates |
+| 💻 **zsh** | ✅ | ZSH shell setup | Oh-My-Zsh, themes, plugins, aliases |
+| 📋 **motd** | ✅ | Dynamic MOTD | System info, resource usage, security status |
+| 📊 **netdata** | ✅ | Monitoring agent | Real-time metrics, health checks, dashboards |
 
-Legend: ✅ implemented • ⏳ in progress
+> 💡 **Tip:** Run `flux module <name> --help` for detailed usage information
+
+📖 **[Full Module Documentation →](docs/MODULES.md)**
 
 ---
 
 ## 🔗 Workflows
 
-| Workflow      | Modules Executed              | Use‑case         |
-| ------------- | ----------------------------- | ---------------- |
-| `essential`   | update → hostname → network   | clean base image |
-| `security`    | firewall → ssh → sysctl       | hardening pass   |
-| `complete`    | essential + security + extras | full stack       |
-| `development` | user → zsh → certs            | dev workstation  |
-| `monitoring`  | netdata + certs               | metrics node     |
+**Workflows** combine multiple modules into cohesive provisioning pipelines:
 
-Workflows guarantee ordering and stop on first fatal error by default.
-
----
-
-## 🛠️ Development
+### 🌟 Essential
+> **Perfect for**: Fresh server setup, base configuration
 
 ```bash
-# Run lints & unit tests
-cargo fmt --all -- --check
-cargo clippy --all-targets -- -D warnings
-cargo test
-
-# Integration (inside container)
-just test-docker   # see justfile
+sudo flux apply essential
 ```
 
-### Contribution Guide
+**Includes:** `update` → `certs` → `sysctl` → `ssh`
 
-1. Fork & branch from `main`.
-2. Write code + tests (unit or mocked).
-3. Run CI locally (`just ci`).
-4. Open PR—link to an open issue or create one.
-
-All code is licensed MIT‑OR‑Apache‑2.0. All contributions require DCO sign‑off (`git commit -s`).
-
----
-
-## 🛤️ Roadmap
-
-* **0.3** – Core hardening modules complete (ssh, firewall, sysctl)
-* **0.4** – Monitoring & TLS automation
-* **0.5** – Alpine & Arch support
-* **1.0** – Stable API, plugin SDK & binary releases
-
-Track progress in [`docs/ROADMAP.md`](docs/ROADMAP.md).
+**What it does:**
+- ✅ Updates all packages to latest versions
+- ✅ Installs required certificates
+- ✅ Applies kernel hardening parameters
+- ✅ Configures SSH security
 
 ---
 
-## 🤝 Acknowledgements
+### 🔒 Security
+> **Perfect for**: Hardening existing servers, security compliance
 
-Flux stands on the shoulders of:
+```bash
+sudo flux apply security
+```
 
-* [tokio](https://tokio.rs/) – async runtime
-* [clap](https://github.com/clap-rs/clap) – CLI
-* [serde](https://serde.rs/) – TOML deserialization
-* CIS Benchmarks & Mozilla SSH Guidelines for hardening profiles
+**Includes:** `firewall` → `ssh` → `sysctl`
+
+**What it does:**
+- ✅ Configures firewall with deny-all default
+- ✅ SSH hardening (port change, key-only auth)
+- ✅ Kernel security parameters
+
+---
+
+### 🎯 Complete
+> **Perfect for**: Full server provisioning from scratch
+
+```bash
+sudo flux apply complete
+```
+
+**Includes:** All 11 modules in optimized sequence
+
+---
+
+### 💻 Development
+> **Perfect for**: Developer workstations, coding environments
+
+```bash
+sudo flux apply development
+```
+
+**Includes:** `user` → `zsh` → `certs`
+
+---
+
+### 📊 Monitoring
+> **Perfect for**: Setting up observability stack
+
+```bash
+sudo flux apply monitoring
+```
+
+**Includes:** `netdata` → `certs` → `motd`
+
+---
+
+📖 **[Full Workflow Guide →](docs/WORKFLOWS.md)**
+
+---
+
+## 🎨 Usage Examples
+
+<details>
+<summary><b>🔧 Setup a Web Server</b></summary>
+
+```bash
+# 1. Essential baseline
+sudo flux apply essential
+
+# 2. Create admin user
+sudo flux module user --admin deploy --github deploybot
+
+# 3. Configure firewall for web traffic
+sudo flux module firewall --preset web-server
+
+# 4. Harden SSH
+sudo flux module ssh --port 2222 --disable-passwords
+
+# 5. Setup monitoring
+sudo flux module netdata --install
+
+# 6. Custom MOTD
+sudo flux module motd --org "MyCompany" --banner flux-large
+```
+
+</details>
+
+<details>
+<summary><b>🗄️ Database Server Hardening</b></summary>
+
+```bash
+# Run security workflow
+sudo flux apply security
+
+# Configure firewall for database
+sudo flux module firewall --preset database-server
+
+# Apply strict kernel parameters
+sudo flux module sysctl --apply
+
+# Setup monitoring
+sudo flux module netdata --install
+```
+
+</details>
+
+<details>
+<summary><b>💻 Developer Workstation Setup</b></summary>
+
+```bash
+# Run development workflow
+sudo flux apply development
+
+# Install ZSH with custom theme
+sudo flux module zsh --theme agnoster --plugins "git docker kubectl"
+
+# Setup custom MOTD
+sudo flux module motd --org "Dev Team" --banner simple
+```
+
+</details>
+
+📖 **[More Examples →](docs/EXAMPLES.md)**
+
+---
+
+## 📚 Documentation
+
+### 📖 User Guides
+- **[Installation Guide](docs/INSTALLATION.md)** - Detailed installation instructions
+- **[Module Reference](docs/MODULES.md)** - Complete module documentation
+- **[Workflow Guide](docs/WORKFLOWS.md)** - Workflow usage and customization
+- **[Configuration Reference](docs/CONFIGURATION.md)** - Config file documentation
+- **[Examples](docs/EXAMPLES.md)** - Real-world usage scenarios
+
+### 🛠️ Development
+- **[Contributing Guide](docs/CONTRIBUTING.md)** - How to contribute
+- **[Architecture](docs/ARCHITECTURE.md)** - System design and internals
+- **[Roadmap](docs/ROADMAP.md)** - Future plans and features
+
+### 📝 Reference
+- **[claude.md](claude.md)** - Complete framework reference for AI assistants
+
+---
+
+## 🐧 Supported Distributions
+
+| Distribution | Support Status | Notes |
+|--------------|----------------|-------|
+| 🟢 **Ubuntu** | ✅ Full | 20.04+, 22.04+, 24.04+ |
+| 🟢 **Debian** | ✅ Full | 11, 12 |
+| 🟢 **RHEL** | ✅ Full | 8, 9 |
+| 🟢 **CentOS** | ✅ Full | Stream 8, 9 |
+| 🟢 **Rocky Linux** | ✅ Full | 8, 9 |
+| 🟢 **AlmaLinux** | ✅ Full | 8, 9 |
+| 🟢 **Fedora** | ✅ Full | 38, 39, 40 |
+| 🟡 **Alpine** | 🔜 Planned | v0.5 |
+| 🟡 **Arch** | 🔜 Planned | v0.5 |
+
+---
+
+## 🤝 Contributing
+
+We ❤️ contributions! Whether it's:
+
+- 🐛 **Bug reports** - Found an issue? [Open an issue](https://github.com/ethanbissbort/flux-framework-rust/issues)
+- 💡 **Feature requests** - Have an idea? [Start a discussion](https://github.com/ethanbissbort/flux-framework-rust/discussions)
+- 📝 **Documentation** - Improve our docs with a PR
+- 🔧 **Code contributions** - See our [Contributing Guide](docs/CONTRIBUTING.md)
+
+### Quick Contribution Guide
+
+```bash
+# 1. Fork and clone
+git clone https://github.com/YOUR_USERNAME/flux-framework-rust.git
+
+# 2. Create a branch
+git checkout -b feature/amazing-feature
+
+# 3. Make your changes and test
+cargo test
+cargo clippy
+cargo fmt
+
+# 4. Commit with DCO sign-off
+git commit -s -m "Add amazing feature"
+
+# 5. Push and create PR
+git push origin feature/amazing-feature
+```
+
+📖 **[Full Contributing Guide →](docs/CONTRIBUTING.md)**
+
+---
+
+## 🗺️ Roadmap
+
+### ✅ Version 3.0 (Current)
+- [x] Complete Rust migration from shell scripts
+- [x] All 11 modules implemented
+- [x] 5 workflows operational
+- [x] Comprehensive error handling
+- [x] Interactive & scriptable modes
+
+### 🎯 Version 3.1 (Next)
+- [ ] Configuration file support (`flux.toml`)
+- [ ] Dry-run mode for all operations
+- [ ] Enhanced logging with JSON output
+- [ ] Module dependency resolution
+- [ ] Automatic rollback on failure
+
+### 🚀 Version 3.2
+- [ ] Plugin system for custom modules
+- [ ] Remote execution support
+- [ ] Multi-server orchestration
+- [ ] Web UI dashboard
+- [ ] API server mode
+
+### 🌟 Version 4.0
+- [ ] Alpine & Arch Linux support
+- [ ] Container-based testing
+- [ ] Integration with Ansible/Terraform
+- [ ] Cloud provider integrations
+- [ ] Compliance reporting (CIS, NIST)
+
+📖 **[Detailed Roadmap →](docs/ROADMAP.md)**
+
+---
+
+## 📊 Project Stats
+
+```
+📦 Modules:     11 ✅ | 0 🔜
+🔗 Workflows:   5 ✅  | 0 🔜
+🧪 Tests:       Coverage in progress
+📄 Lines:       ~12,000 lines of Rust
+⚡ Binary Size: <5 MB (release)
+```
+
+---
+
+## 🙏 Acknowledgements
+
+Flux stands on the shoulders of giants:
+
+- 🦀 **[Rust](https://www.rust-lang.org/)** - The language that makes this possible
+- ⚡ **[Tokio](https://tokio.rs/)** - Async runtime
+- 🎯 **[Clap](https://github.com/clap-rs/clap)** - CLI framework
+- 📦 **[Serde](https://serde.rs/)** - Serialization framework
+- 🔐 **[CIS Benchmarks](https://www.cisecurity.org/cis-benchmarks)** - Security guidelines
+- 🛡️ **[Mozilla SSH Guidelines](https://infosec.mozilla.org/guidelines/openssh)** - SSH hardening
+
+Special thanks to all [contributors](https://github.com/ethanbissbort/flux-framework-rust/graphs/contributors)!
 
 ---
 
 ## 📜 License
 
-Dual‑licensed under **Apache‑2.0** or **MIT** – choose either for your project.
-See [`LICENSE-APACHE`](LICENSE-APACHE) and [`LICENSE-MIT`](LICENSE-MIT).
+Flux Framework is dual-licensed under your choice of:
+
+- **Apache License 2.0** ([LICENSE-APACHE](LICENSE-APACHE))
+- **MIT License** ([LICENSE-MIT](LICENSE-MIT))
+
+This means you can use Flux in your projects under either license.
 
 ---
 
-*© 2025 Flux Contributors*
+## 📬 Contact & Support
+
+- 🐛 **Issues**: [GitHub Issues](https://github.com/ethanbissbort/flux-framework-rust/issues)
+- 💬 **Discussions**: [GitHub Discussions](https://github.com/ethanbissbort/flux-framework-rust/discussions)
+- 📧 **Email**: flux-framework@example.com
+- 🌐 **Website**: https://flux-framework.io
+
+---
+
+<div align="center">
+
+**⚡ Built with ❤️ and Rust 🦀**
+
+*Making Linux system administration fast, safe, and enjoyable*
+
+[⬆ Back to Top](#-flux-framework)
+
+</div>

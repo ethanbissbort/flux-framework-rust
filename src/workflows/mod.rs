@@ -4,7 +4,7 @@ pub mod essential;
 pub mod monitoring;
 pub mod security;
 
-pub use system::{check_reboot_needed, is_service_active_enhanced};
+pub use crate::helpers::system::{check_reboot_needed, is_service_active_enhanced};
 
 use crate::config::Config;
 use crate::error::{FluxError, Result};

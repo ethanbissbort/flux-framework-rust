@@ -103,6 +103,14 @@ pub fn log_error<S: AsRef<str>>(message: S) {
     let _ = write_to_log_file(&format!("[ERROR] {}", msg));
 }
 
+/// Log success message
+pub fn log_success<S: AsRef<str>>(message: S) {
+    let msg = message.as_ref();
+    info!("{}", msg);
+    println!("{} {}", "[SUCCESS]".green().bold(), msg);
+    let _ = write_to_log_file(&format!("[SUCCESS] {}", msg));
+}
+
 /// Progress indicator
 pub struct ProgressIndicator {
     pb: indicatif::ProgressBar,

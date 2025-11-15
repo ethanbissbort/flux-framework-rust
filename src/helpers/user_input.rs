@@ -240,33 +240,33 @@ impl Menu {
             items: Vec::new(),
         }
     }
-    
+
     /// Add menu item
     pub fn add_item(mut self, key: &str, description: &str) -> Self {
         self.items.push((key.to_string(), description.to_string()));
         self
     }
-    
+
     /// Show menu and get selection
     pub fn show(&self) -> Result<String> {
         println!("\n{}", self.title.cyan());
         println!("{}", "=".repeat(self.title.len()).cyan());
-        
+
         let display_items: Vec<String> = self.items
             .iter()
             .enumerate()
             .map(|(i, (key, desc))| format!("{}. {} - {}", i + 1, key, desc))
             .collect();
-        
+
         for item in &display_items {
             println!("{}", item);
         }
-        
+
         println!("{}. Exit", display_items.len() + 1);
         println!();
-        
+
         let selection = prompt_input("Select option")?;
-        
+
         if let Ok(num) = selection.parse::<usize>() {
             if num > 0 && num <= self.items.len() {
                 return Ok(self.items[num - 1].0.clone());
@@ -274,14 +274,26 @@ impl Menu {
                 return Err(FluxError::UserCancelled);
             }
         }
-        
+
         // Try to match by key
         for (key, _) in &self.items {
             if key.eq_ignore_ascii_case(&selection) {
                 return Ok(key.clone());
             }
         }
-        
+
         Err(FluxError::validation("Invalid selection"))
     }
+}
+
+/// Select from a menu - accepts both &[String] and &[&str]
+pub fn select_from_menu<T: AsRef<str>>(prompt: &str, items: &[T]) -> Result<usize> {
+    let string_items: Vec<String> = items.iter().map(|s| s.as_ref().to_string()).collect();
+    prompt_select(prompt, &string_items, 0)
+}
+
+/// Multi-select menu - accepts both &[String] and &[&str]
+pub fn multi_select_menu<T: AsRef<str>>(prompt: &str, items: &[T]) -> Result<Vec<usize>> {
+    let string_items: Vec<String> = items.iter().map(|s| s.as_ref().to_string()).collect();
+    prompt_multi_select(prompt, &string_items)
 }

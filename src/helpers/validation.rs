@@ -196,8 +196,8 @@ pub fn validate_ssh_key(key: &str) -> Result<()> {
 }
 
 /// Validate URL
-pub fn validate_url(url: &str) -> Result<url::Url> {
-    url::Url::parse(url)
+pub fn validate_url(url: &str) -> Result<reqwest::Url> {
+    reqwest::Url::parse(url)
         .map_err(|e| FluxError::validation(format!("Invalid URL: {}", e)))
 }
 

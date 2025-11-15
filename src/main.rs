@@ -2,9 +2,7 @@ use anyhow::Result;
 use clap::{Parser, Subcommand};
 use colored::Colorize;
 use flux_framework::{
-    cli::FluxCli,
     config::Config,
-    error::FluxError,
     helpers::logging::{init_logging, LogLevel},
     modules::ModuleManager,
     workflows::WorkflowManager,
@@ -150,7 +148,7 @@ async fn list_modules() -> Result<()> {
     if modules.is_empty() {
         println!("{}", "No modules found".red());
     } else {
-        for module in modules {
+        for module in &modules {
             let status = if module.is_executable() {
                 "✓".green()
             } else {
@@ -159,9 +157,9 @@ async fn list_modules() -> Result<()> {
 
             println!(
                 "{:<20} {} {}",
-                module.name().white(),
+                module.name.white(),
                 status,
-                module.description()
+                module.description
             );
         }
 

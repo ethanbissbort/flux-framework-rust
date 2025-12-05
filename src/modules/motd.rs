@@ -6,14 +6,13 @@ use crate::error::{FluxError, Result};
 use crate::helpers::{
     file_ops::safe_write_file,
     logging::{log_debug, log_error, log_info, log_success, log_warn},
-    system::{check_command, execute_command},
     user_input::{prompt_input, prompt_yes_no, select_from_menu},
 };
 use crate::modules::{Module, ModuleBase, ModuleInfo};
 use async_trait::async_trait;
 use std::fs;
 use std::os::unix::fs::PermissionsExt;
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
 use std::process::Command;
 
 const MOTD_DIR: &str = "/etc/update-motd.d";
@@ -111,7 +110,10 @@ echo
         );
 
         let script_path = PathBuf::from(MOTD_DIR).join("10-flux-header");
-        safe_write_file(script_path.to_str().unwrap(), &script, true)?;
+        let script_path_str = script_path
+            .to_str()
+            .ok_or_else(|| FluxError::system("Invalid UTF-8 in path"))?;
+        safe_write_file(script_path_str, &script, true)?;
 
         // Make executable
         let mut perms = fs::metadata(&script_path)?.permissions();
@@ -175,7 +177,10 @@ echo
 "#;
 
         let script_path = PathBuf::from(MOTD_DIR).join("20-flux-sysinfo");
-        safe_write_file(script_path.to_str().unwrap(), script, true)?;
+        let script_path_str = script_path
+            .to_str()
+            .ok_or_else(|| FluxError::system("Invalid UTF-8 in path"))?;
+        safe_write_file(script_path_str, script, true)?;
 
         // Make executable
         let mut perms = fs::metadata(&script_path)?.permissions();
@@ -233,7 +238,10 @@ echo
 "#;
 
         let script_path = PathBuf::from(MOTD_DIR).join("30-flux-security");
-        safe_write_file(script_path.to_str().unwrap(), script, true)?;
+        let script_path_str = script_path
+            .to_str()
+            .ok_or_else(|| FluxError::system("Invalid UTF-8 in path"))?;
+        safe_write_file(script_path_str, script, true)?;
 
         // Make executable
         let mut perms = fs::metadata(&script_path)?.permissions();
@@ -271,7 +279,10 @@ echo
         );
 
         let script_path = PathBuf::from(MOTD_DIR).join("90-flux-footer");
-        safe_write_file(script_path.to_str().unwrap(), &script, true)?;
+        let script_path_str = script_path
+            .to_str()
+            .ok_or_else(|| FluxError::system("Invalid UTF-8 in path"))?;
+        safe_write_file(script_path_str, &script, true)?;
 
         // Make executable
         let mut perms = fs::metadata(&script_path)?.permissions();

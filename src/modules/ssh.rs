@@ -6,9 +6,8 @@ use crate::error::{FluxError, Result};
 use crate::helpers::{
     file_ops::{backup_file, safe_write_file},
     logging::{log_error, log_info, log_success, log_warn},
-    system::{check_command, execute_command, get_os_info, restart_service},
-    user_input::{prompt_input, prompt_with_default, prompt_yes_no, select_from_menu},
-    validation::validate_port,
+    system::{check_command, execute_command, restart_service},
+    user_input::{prompt_with_default, prompt_yes_no, select_from_menu},
 };
 use crate::modules::{Module, ModuleBase, ModuleInfo};
 use async_trait::async_trait;

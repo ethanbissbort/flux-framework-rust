@@ -5,8 +5,8 @@ use crate::config::Config;
 use crate::error::{FluxError, Result};
 use crate::helpers::{
     file_ops::safe_write_file,
-    logging::{log_debug, log_error, log_info, log_success, log_warn},
-    system::{check_command, execute_command, get_os_info},
+    logging::{log_info, log_success, log_warn},
+    system::{check_command, execute_command},
     user_input::{prompt_input, prompt_with_default, prompt_yes_no, select_from_menu},
 };
 use crate::modules::{Module, ModuleBase, ModuleInfo};
@@ -204,7 +204,10 @@ impl NetdataModule {
             web_port
         );
 
-        safe_write_file(config_path.to_str().unwrap(), &config, true)?;
+        let config_path_str = config_path
+            .to_str()
+            .ok_or_else(|| FluxError::system("Invalid UTF-8 in config path"))?;
+        safe_write_file(config_path_str, &config, true)?;
 
         log_success("Netdata configured");
         Ok(())
@@ -230,7 +233,10 @@ info: CPU usage is high
 "#;
 
         let cpu_alarm_path = health_dir.join("cpu_usage.conf");
-        safe_write_file(cpu_alarm_path.to_str().unwrap(), cpu_alarm, true)?;
+        let cpu_alarm_path_str = cpu_alarm_path
+            .to_str()
+            .ok_or_else(|| FluxError::system("Invalid UTF-8 in alarm path"))?;
+        safe_write_file(cpu_alarm_path_str, cpu_alarm, true)?;
 
         // Memory alarm
         let mem_alarm = r#"
@@ -245,7 +251,10 @@ info: RAM usage is high
 "#;
 
         let mem_alarm_path = health_dir.join("ram_usage.conf");
-        safe_write_file(mem_alarm_path.to_str().unwrap(), mem_alarm, true)?;
+        let mem_alarm_path_str = mem_alarm_path
+            .to_str()
+            .ok_or_else(|| FluxError::system("Invalid UTF-8 in alarm path"))?;
+        safe_write_file(mem_alarm_path_str, mem_alarm, true)?;
 
         // Disk alarm
         let disk_alarm = r#"
@@ -260,7 +269,10 @@ info: Disk space usage is high
 "#;
 
         let disk_alarm_path = health_dir.join("disk_space.conf");
-        safe_write_file(disk_alarm_path.to_str().unwrap(), disk_alarm, true)?;
+        let disk_alarm_path_str = disk_alarm_path
+            .to_str()
+            .ok_or_else(|| FluxError::system("Invalid UTF-8 in alarm path"))?;
+        safe_write_file(disk_alarm_path_str, disk_alarm, true)?;
 
         log_success("Health alarms configured");
         Ok(())
@@ -578,9 +590,12 @@ WEB INTERFACE:
                 "--install" => {
                     let disable_telemetry = args.contains(&"--disable-telemetry".to_string());
                     let claim_token = if args.contains(&"--claim-token".to_string()) {
-                        let token_idx = args.iter().position(|s| s == "--claim-token").unwrap();
-                        if token_idx + 1 < args.len() {
-                            Some(args[token_idx + 1].as_str())
+                        if let Some(token_idx) = args.iter().position(|s| s == "--claim-token") {
+                            if token_idx + 1 < args.len() {
+                                Some(args[token_idx + 1].as_str())
+                            } else {
+                                None
+                            }
                         } else {
                             None
                         }
@@ -593,9 +608,12 @@ WEB INTERFACE:
                 }
                 "--configure" => {
                     let port = if args.contains(&"--port".to_string()) {
-                        let port_idx = args.iter().position(|s| s == "--port").unwrap();
-                        if port_idx + 1 < args.len() {
-                            args[port_idx + 1].parse::<u16>().unwrap_or(19999)
+                        if let Some(port_idx) = args.iter().position(|s| s == "--port") {
+                            if port_idx + 1 < args.len() {
+                                args[port_idx + 1].parse::<u16>().unwrap_or(19999)
+                            } else {
+                                19999
+                            }
                         } else {
                             19999
                         }

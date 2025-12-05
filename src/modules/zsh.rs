@@ -6,7 +6,7 @@ use crate::error::{FluxError, Result};
 use crate::helpers::{
     file_ops::safe_write_file,
     logging::{log_debug, log_error, log_info, log_success, log_warn},
-    system::{check_command, execute_command, get_os_info},
+    system::{check_command, execute_command},
     user_input::{prompt_input, prompt_yes_no, select_from_menu},
 };
 use crate::modules::{Module, ModuleBase, ModuleInfo};
@@ -71,7 +71,11 @@ impl ZshModule {
         let user = get_user_by_name(username)
             .ok_or_else(|| FluxError::Module(format!("User '{}' not found", username)))?;
 
-        let home_dir = PathBuf::from(user.home_dir().to_str().unwrap());
+        let home_dir_str = user
+            .home_dir()
+            .to_str()
+            .ok_or_else(|| FluxError::system("Invalid UTF-8 in home directory path"))?;
+        let home_dir = PathBuf::from(home_dir_str);
         let oh_my_zsh_dir = home_dir.join(".oh-my-zsh");
 
         // Check if Oh-My-Zsh is already installed
@@ -112,7 +116,11 @@ impl ZshModule {
         let user = get_user_by_name(username)
             .ok_or_else(|| FluxError::Module(format!("User '{}' not found", username)))?;
 
-        let home_dir = PathBuf::from(user.home_dir().to_str().unwrap());
+        let home_dir_str = user
+            .home_dir()
+            .to_str()
+            .ok_or_else(|| FluxError::system("Invalid UTF-8 in home directory path"))?;
+        let home_dir = PathBuf::from(home_dir_str);
         let custom_plugins_dir = home_dir.join(".oh-my-zsh/custom/plugins");
 
         for plugin in plugins {
@@ -121,12 +129,15 @@ impl ZshModule {
                     let plugin_dir = custom_plugins_dir.join("zsh-autosuggestions");
                     if !plugin_dir.exists() {
                         log_info("Installing zsh-autosuggestions");
+                        let plugin_dir_str = plugin_dir
+                            .to_str()
+                            .ok_or_else(|| FluxError::system("Invalid UTF-8 in plugin path"))?;
                         execute_command(
                             "git",
                             &[
                                 "clone",
                                 "https://github.com/zsh-users/zsh-autosuggestions",
-                                plugin_dir.to_str().unwrap(),
+                                plugin_dir_str,
                             ],
                         )?;
                     }
@@ -135,12 +146,15 @@ impl ZshModule {
                     let plugin_dir = custom_plugins_dir.join("zsh-syntax-highlighting");
                     if !plugin_dir.exists() {
                         log_info("Installing zsh-syntax-highlighting");
+                        let plugin_dir_str = plugin_dir
+                            .to_str()
+                            .ok_or_else(|| FluxError::system("Invalid UTF-8 in plugin path"))?;
                         execute_command(
                             "git",
                             &[
                                 "clone",
                                 "https://github.com/zsh-users/zsh-syntax-highlighting.git",
-                                plugin_dir.to_str().unwrap(),
+                                plugin_dir_str,
                             ],
                         )?;
                     }
@@ -149,12 +163,15 @@ impl ZshModule {
                     let plugin_dir = custom_plugins_dir.join("zsh-completions");
                     if !plugin_dir.exists() {
                         log_info("Installing zsh-completions");
+                        let plugin_dir_str = plugin_dir
+                            .to_str()
+                            .ok_or_else(|| FluxError::system("Invalid UTF-8 in plugin path"))?;
                         execute_command(
                             "git",
                             &[
                                 "clone",
                                 "https://github.com/zsh-users/zsh-completions",
-                                plugin_dir.to_str().unwrap(),
+                                plugin_dir_str,
                             ],
                         )?;
                     }
@@ -186,17 +203,24 @@ impl ZshModule {
         let user = get_user_by_name(username)
             .ok_or_else(|| FluxError::Module(format!("User '{}' not found", username)))?;
 
-        let home_dir = PathBuf::from(user.home_dir().to_str().unwrap());
+        let home_dir_str = user
+            .home_dir()
+            .to_str()
+            .ok_or_else(|| FluxError::system("Invalid UTF-8 in home directory path"))?;
+        let home_dir = PathBuf::from(home_dir_str);
         let theme_dir = home_dir.join(".oh-my-zsh/custom/themes/powerlevel10k");
 
         if !theme_dir.exists() {
+            let theme_dir_str = theme_dir
+                .to_str()
+                .ok_or_else(|| FluxError::system("Invalid UTF-8 in theme path"))?;
             execute_command(
                 "git",
                 &[
                     "clone",
                     "--depth=1",
                     "https://github.com/romkatv/powerlevel10k.git",
-                    theme_dir.to_str().unwrap(),
+                    theme_dir_str,
                 ],
             )?;
 
@@ -324,7 +348,11 @@ fi
         let user = get_user_by_name(username)
             .ok_or_else(|| FluxError::Module(format!("User '{}' not found", username)))?;
 
-        let home_dir = PathBuf::from(user.home_dir().to_str().unwrap());
+        let home_dir_str = user
+            .home_dir()
+            .to_str()
+            .ok_or_else(|| FluxError::system("Invalid UTF-8 in home directory path"))?;
+        let home_dir = PathBuf::from(home_dir_str);
         let zshrc_path = home_dir.join(".zshrc");
 
         // Backup existing .zshrc
@@ -346,7 +374,10 @@ fi
 
         // Generate and write .zshrc
         let zshrc_content = self.generate_zshrc(theme, plugins);
-        safe_write_file(zshrc_path.to_str().unwrap(), &zshrc_content, true)?;
+        let zshrc_path_str = zshrc_path
+            .to_str()
+            .ok_or_else(|| FluxError::system("Invalid UTF-8 in .zshrc path"))?;
+        safe_write_file(zshrc_path_str, &zshrc_content, true)?;
 
         // Fix ownership
         let uid = user.uid();
@@ -571,9 +602,12 @@ EXAMPLES:
                     if i + 1 < args.len() {
                         let username = &args[i + 1];
                         let theme = if args.contains(&"--theme".to_string()) {
-                            let theme_idx = args.iter().position(|s| s == "--theme").unwrap();
-                            if theme_idx + 1 < args.len() {
-                                &args[theme_idx + 1]
+                            if let Some(theme_idx) = args.iter().position(|s| s == "--theme") {
+                                if theme_idx + 1 < args.len() {
+                                    &args[theme_idx + 1]
+                                } else {
+                                    "robbyrussell"
+                                }
                             } else {
                                 "robbyrussell"
                             }

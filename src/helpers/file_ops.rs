@@ -20,13 +20,19 @@ pub fn backup_file<P: AsRef<Path>>(file_path: P) -> Result<PathBuf> {
     }
     
     let timestamp = Local::now().format("%Y%m%d_%H%M%S");
-    let backup_name = format!(
-        "{}.backup_{}",
-        file_path.file_name().unwrap().to_string_lossy(),
-        timestamp
-    );
-    
-    let backup_path = file_path.parent().unwrap().join(backup_name);
+
+    let file_name = file_path
+        .file_name()
+        .ok_or_else(|| FluxError::system("Invalid file path: no file name"))?
+        .to_string_lossy();
+
+    let backup_name = format!("{}.backup_{}", file_name, timestamp);
+
+    let parent_dir = file_path
+        .parent()
+        .ok_or_else(|| FluxError::system("Invalid file path: no parent directory"))?;
+
+    let backup_path = parent_dir.join(backup_name);
     
     fs::copy(file_path, &backup_path)
         .map_err(|e| FluxError::Io(e))?;

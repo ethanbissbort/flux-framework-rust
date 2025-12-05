@@ -2,9 +2,9 @@ use crate::config::Config;
 use crate::error::{FluxError, Result};
 use crate::helpers::{
     file_ops::{backup_file, safe_write_file},
-    logging::{log_error, log_info, log_warn},
-    network::{get_network_interfaces, NetworkInterface},
-    system::{detect_distro, Distribution, execute_command},
+    logging::{log_info, log_warn},
+    network::get_network_interfaces,
+    system::{detect_distro, execute_command},
     user_input::{prompt_input, prompt_ip, prompt_yes_no, prompt_select},
     validation::{validate_interface, validate_ip, validate_vlan},
 };
@@ -12,9 +12,7 @@ use crate::modules::{Module, ModuleBase, ModuleContext, ModuleInfo};
 use async_trait::async_trait;
 use clap::{Arg, ArgAction, ArgMatches, Command};
 use colored::Colorize;
-use ipnetwork::IpNetwork;
 use serde::{Deserialize, Serialize};
-use std::collections::HashMap;
 use std::path::Path;
 
 /// Network configuration module

@@ -4,17 +4,16 @@
 use crate::config::Config;
 use crate::error::{FluxError, Result};
 use crate::helpers::{
-    file_ops::{backup_file, safe_write_file},
-    logging::{log_debug, log_error, log_info, log_success, log_warn},
-    system::{check_command, execute_command, get_os_info},
-    user_input::{multi_select_menu, prompt_input, prompt_password, prompt_with_default, prompt_yes_no, select_from_menu},
+    logging::{log_info, log_success, log_warn},
+    system::check_command,
+    user_input::{prompt_input, prompt_password, prompt_with_default, prompt_yes_no, select_from_menu},
     validation::validate_username,
 };
 use crate::modules::{Module, ModuleBase, ModuleInfo};
 use async_trait::async_trait;
 use std::fs;
 use std::os::unix::fs::PermissionsExt;
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
 use std::process::Command;
 use users::{get_user_by_name, get_group_by_name};
 use users::os::unix::UserExt;
@@ -232,7 +231,11 @@ impl UserModule {
         let user = get_user_by_name(username)
             .ok_or_else(|| FluxError::Module(format!("User '{}' not found", username)))?;
 
-        let home_dir = PathBuf::from(user.home_dir().to_str().unwrap());
+        let home_dir_str = user
+            .home_dir()
+            .to_str()
+            .ok_or_else(|| FluxError::system("Invalid UTF-8 in home directory path"))?;
+        let home_dir = PathBuf::from(home_dir_str);
         let ssh_dir = home_dir.join(".ssh");
         let auth_keys = ssh_dir.join("authorized_keys");
 
@@ -243,7 +246,9 @@ impl UserModule {
             })?;
 
             // Set permissions to 700
-            let mut perms = fs::metadata(&ssh_dir).unwrap().permissions();
+            let mut perms = fs::metadata(&ssh_dir)
+                .map_err(|e| FluxError::system(format!("Failed to get .ssh metadata: {}", e)))?
+                .permissions();
             perms.set_mode(0o700);
             fs::set_permissions(&ssh_dir, perms).map_err(|e| {
                 FluxError::system(format!("Failed to set .ssh permissions: {}", e))
@@ -259,7 +264,9 @@ impl UserModule {
             })?;
 
             // Set permissions to 600
-            let mut perms = fs::metadata(&auth_keys).unwrap().permissions();
+            let mut perms = fs::metadata(&auth_keys)
+                .map_err(|e| FluxError::system(format!("Failed to get authorized_keys metadata: {}", e)))?
+                .permissions();
             perms.set_mode(0o600);
             fs::set_permissions(&auth_keys, perms).map_err(|e| {
                 FluxError::system(format!("Failed to set authorized_keys permissions: {}", e))
@@ -332,7 +339,11 @@ impl UserModule {
         let user = get_user_by_name(username)
             .ok_or_else(|| FluxError::Module(format!("User '{}' not found", username)))?;
 
-        let home_dir = PathBuf::from(user.home_dir().to_str().unwrap());
+        let home_dir_str = user
+            .home_dir()
+            .to_str()
+            .ok_or_else(|| FluxError::system("Invalid UTF-8 in home directory path"))?;
+        let home_dir = PathBuf::from(home_dir_str);
         let auth_keys = home_dir.join(".ssh/authorized_keys");
 
         // Read existing keys
@@ -414,12 +425,19 @@ impl UserModule {
 
             log_info(&format!("Backing up home directory to {:?}", backup_path));
 
+            let parent_dir = home_dir
+                .parent()
+                .ok_or_else(|| FluxError::system("Home directory has no parent"))?;
+            let dir_name = home_dir
+                .file_name()
+                .ok_or_else(|| FluxError::system("Home directory has no file name"))?;
+
             let output = Command::new("tar")
                 .arg("-czf")
                 .arg(&backup_path)
                 .arg("-C")
-                .arg(home_dir.parent().unwrap())
-                .arg(home_dir.file_name().unwrap())
+                .arg(parent_dir)
+                .arg(dir_name)
                 .output()
                 .map_err(|e| FluxError::command_failed(format!("Failed to backup home directory: {}", e)))?;
 

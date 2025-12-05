@@ -1,8 +1,6 @@
 use crate::error::{FluxError, Result};
 use crate::helpers::system::execute_command;
-use ipnetwork::IpNetwork;
 use pnet::datalink;
-use std::collections::HashMap;
 use std::net::{IpAddr, TcpStream, ToSocketAddrs};
 use std::time::Duration;
 
@@ -34,9 +32,14 @@ pub fn get_network_interfaces() -> Result<Vec<NetworkInterface>> {
         // MTU is not available in pnet's NetworkInterface, try to read from sysfs
         let mtu = get_interface_mtu(&interface.name).unwrap_or(0);
 
+        let mac_addr = interface
+            .mac
+            .map(|m| m.to_string())
+            .unwrap_or_else(|| String::from(""));
+
         interfaces.push(NetworkInterface {
             name: interface.name.clone(),
-            mac: interface.mac.map(|m| m.to_string()).unwrap_or_default(),
+            mac: mac_addr,
             ips,
             is_up: interface.is_up(),
             is_loopback: interface.is_loopback(),

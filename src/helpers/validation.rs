@@ -3,6 +3,7 @@ use ipnetwork::IpNetwork;
 use regex::Regex;
 use std::net::IpAddr;
 use std::str::FromStr;
+use base64::{Engine as _, engine::general_purpose};
 
 lazy_static::lazy_static! {
     /// Hostname validation regex
@@ -188,7 +189,7 @@ pub fn validate_ssh_key(key: &str) -> Result<()> {
     }
     
     // Try to decode base64 key data
-    if base64::decode(parts[1]).is_err() {
+    if general_purpose::STANDARD.decode(parts[1]).is_err() {
         return Err(FluxError::validation("Invalid SSH key data (not valid base64)"));
     }
     

@@ -2,7 +2,7 @@ use crate::config::Config;
 use crate::error::{FluxError, Result};
 use crate::helpers::{
     file_ops::{backup_file, safe_write_file},
-    logging::{log_error, log_info, log_warn},
+    logging::log_info,
     system::{execute_command, get_hostname},
     user_input::{prompt_input, prompt_yes_no},
     validation::validate_hostname,
@@ -11,7 +11,6 @@ use crate::modules::{Module, ModuleBase, ModuleContext, ModuleInfo};
 use async_trait::async_trait;
 use clap::{Arg, ArgAction, ArgMatches, Command};
 use colored::Colorize;
-use std::collections::HashMap;
 
 /// Hostname configuration module
 pub struct HostnameModule {

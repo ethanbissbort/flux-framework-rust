@@ -5,7 +5,7 @@ use crate::config::Config;
 use crate::error::{FluxError, Result};
 use crate::helpers::{
     logging::{log_debug, log_error, log_info, log_success, log_warn},
-    system::{check_command, execute_command, get_os_info},
+    system::{check_command, execute_command},
     user_input::{prompt_input, prompt_yes_no, select_from_menu},
 };
 use crate::modules::{Module, ModuleBase, ModuleInfo};

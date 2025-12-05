@@ -1,15 +1,14 @@
 use crate::config::Config;
 use crate::error::{FluxError, Result};
 use crate::helpers::{
-    logging::{log_error, log_info, log_warn, ProgressIndicator},
+    logging::{log_info, log_warn, ProgressIndicator},
     system::{detect_distro, Distribution, execute_command},
-    user_input::{prompt_yes_no, prompt_select},
+    user_input::prompt_yes_no,
 };
 use crate::modules::{Module, ModuleBase, ModuleContext, ModuleInfo};
 use async_trait::async_trait;
 use clap::{Arg, ArgAction, ArgMatches, Command};
 use colored::Colorize;
-use std::collections::HashSet;
 
 /// System update and package management module
 pub struct UpdateModule {

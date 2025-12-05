@@ -1,5 +1,5 @@
 use crate::error::{FluxError, Result};
-use clap::{ArgMatches, Command};
+use clap::Command;
 use colored::Colorize;
 
 /// Flux CLI builder and handler

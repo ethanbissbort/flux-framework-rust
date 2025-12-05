@@ -133,13 +133,84 @@ Flux is a **powerful, type-safe system administration framework** that automates
 <details>
 <summary><b>Option 1: Build from Source (Recommended)</b></summary>
 
-```bash
-# Install Rust (if not already installed)
-curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
+#### Prerequisites
 
-# Clone and build
+Before building, ensure you have the required dependencies installed:
+
+**Quick Check (Automated):**
+```bash
+# Clone the repository
 git clone https://github.com/ethanbissbort/flux-framework-rust.git
 cd flux-framework-rust
+
+# Check and install all dependencies automatically
+sudo ./scripts/check_dependencies.sh --install
+```
+
+**Manual Installation:**
+
+<details>
+<summary>Ubuntu/Debian</summary>
+
+```bash
+# Install build tools and dependencies
+sudo apt-get update
+sudo apt-get install -y build-essential libssl-dev pkg-config git
+
+# Install Rust
+curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
+source "$HOME/.cargo/env"
+```
+</details>
+
+<details>
+<summary>RHEL/CentOS/Rocky/AlmaLinux/Fedora</summary>
+
+```bash
+# Install build tools and dependencies
+sudo dnf install -y gcc gcc-c++ make openssl-devel pkg-config git
+# OR for older systems: sudo yum install -y gcc gcc-c++ make openssl-devel pkg-config git
+
+# Install Rust
+curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
+source "$HOME/.cargo/env"
+```
+</details>
+
+<details>
+<summary>Arch/Manjaro</summary>
+
+```bash
+# Install build tools and dependencies
+sudo pacman -S --noconfirm base-devel openssl pkg-config git
+
+# Install Rust
+curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
+source "$HOME/.cargo/env"
+```
+</details>
+
+<details>
+<summary>Alpine</summary>
+
+```bash
+# Install build tools and dependencies
+sudo apk add build-base openssl-dev pkgconfig git
+
+# Install Rust
+curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
+source "$HOME/.cargo/env"
+```
+</details>
+
+#### Building Flux
+
+```bash
+# Clone the repository (if not already done)
+git clone https://github.com/ethanbissbort/flux-framework-rust.git
+cd flux-framework-rust
+
+# Build in release mode
 cargo build --release
 
 # Install system-wide
@@ -147,6 +218,34 @@ sudo install -m755 target/release/flux /usr/local/bin/flux
 
 # Verify installation
 flux --version
+```
+
+#### Troubleshooting Build Issues
+
+**Error: `linker 'cc' not found` or `error occurred: Command "cc" ... failed`**
+- **Cause**: C compiler/linker not installed
+- **Solution**: Install build tools using the automated script:
+  ```bash
+  sudo ./scripts/check_dependencies.sh --install
+  ```
+  Or install manually for your distribution (see Manual Installation above)
+
+**Error: `could not find native static library 'ssl'`**
+- **Cause**: OpenSSL development headers not installed
+- **Solution**:
+  - Ubuntu/Debian: `sudo apt-get install libssl-dev`
+  - RHEL/CentOS/Fedora: `sudo dnf install openssl-devel`
+  - Arch: `sudo pacman -S openssl`
+  - Alpine: `sudo apk add openssl-dev`
+
+**Error: `Rust version ... is too old`**
+- **Cause**: Rust version older than 1.77
+- **Solution**: Update Rust with `rustup update`
+
+**Need Help?**
+Run the dependency checker for a detailed report:
+```bash
+./scripts/check_dependencies.sh
 ```
 
 </details>

@@ -102,6 +102,27 @@ pub fn prompt_port(prompt: &str, default: Option<&str>) -> Result<String> {
     )
 }
 
+/// Prompt for subnet (accepts CIDR notation like /24 or netmask like 255.255.255.0)
+pub fn prompt_subnet(prompt: &str, default: Option<&str>) -> Result<String> {
+    prompt_with_validation(
+        prompt,
+        default,
+        |subnet| {
+            // Check if it's CIDR notation (starts with /)
+            if subnet.starts_with('/') {
+                if let Ok(prefix) = subnet.trim_start_matches('/').parse::<u8>() {
+                    return prefix <= 32;
+                }
+                false
+            } else {
+                // Validate as netmask IP
+                validation::validate_ip(subnet).is_ok()
+            }
+        },
+        "Invalid subnet (use CIDR like /24 or netmask like 255.255.255.0)",
+    )
+}
+
 /// Prompt for network interface selection
 pub fn prompt_interface(prompt: &str, show_list: bool) -> Result<String> {
     if show_list {

@@ -5,7 +5,7 @@ use crate::helpers::{
     logging::{log_info, log_warn},
     network::get_network_interfaces,
     system::{detect_distro, execute_command},
-    user_input::{prompt_input, prompt_ip, prompt_yes_no, prompt_select},
+    user_input::{prompt_input, prompt_ip, prompt_subnet, prompt_yes_no, prompt_select},
     validation::{validate_interface, validate_ip, validate_vlan},
 };
 use crate::modules::{Module, ModuleBase, ModuleContext, ModuleInfo};
@@ -242,18 +242,21 @@ impl NetworkModule {
         } else {
             // Static configuration
             config.address = Some(prompt_ip("Enter IP address", None)?);
-            config.netmask = Some(prompt_ip("Enter netmask", Some("255.255.255.0"))?);
-            
+
+            // Prompt for subnet (CIDR or netmask notation)
+            let subnet_input = prompt_subnet("Enter subnet (CIDR like /24 or netmask like 255.255.255.0)", Some("/24"))?;
+            config.netmask = Some(Self::normalize_netmask(&subnet_input));
+
             // Get default gateway
             let default_gw = crate::helpers::network::get_default_gateway()
                 .unwrap_or_else(|_| "".to_string());
             config.gateway = Some(prompt_ip("Enter gateway", Some(&default_gw))?);
-            
+
             // DNS servers
-            let dns1 = prompt_ip("Enter primary DNS", Some("1.1.1.1"))?;
-            let dns2 = prompt_ip("Enter secondary DNS", Some("8.8.8.8"))?;
+            let dns1 = prompt_ip("Enter primary DNS", Some("10.0.1.101"))?;
+            let dns2 = prompt_ip("Enter secondary DNS", Some("9.9.9.9"))?;
             config.dns = vec![dns1, dns2];
-            
+
             // MTU
             let mtu = prompt_input("Enter MTU (or press Enter for default)")?;
             if !mtu.is_empty() {
@@ -514,18 +517,18 @@ impl NetworkModule {
     async fn configure_static(&self, interface: &str, ip_address: &str) -> Result<()> {
         validate_interface(interface)?;
         validate_ip(ip_address)?;
-        
+
         let config = NetworkConfig {
             interface: interface.to_string(),
             dhcp: false,
             address: Some(ip_address.to_string()),
             netmask: Some("255.255.255.0".to_string()),
             gateway: crate::helpers::network::get_default_gateway().ok(),
-            dns: vec!["1.1.1.1".to_string(), "8.8.8.8".to_string()],
+            dns: vec!["10.0.1.101".to_string(), "9.9.9.9".to_string()],
             mtu: None,
             vlan_id: None,
         };
-        
+
         self.apply_network_config(&config).await
     }
     
@@ -596,6 +599,60 @@ impl NetworkModule {
             "255.255.255.248" => 29,
             "255.255.255.252" => 30,
             _ => 24, // Default
+        }
+    }
+
+    /// Convert CIDR notation or netmask to netmask format
+    /// Accepts: /24, 24, or 255.255.255.0
+    /// Returns: 255.255.255.0
+    fn normalize_netmask(input: &str) -> String {
+        // If it starts with /, remove the / and parse as CIDR prefix
+        let input = input.trim();
+        if input.starts_with('/') {
+            let prefix = input.trim_start_matches('/');
+            if let Ok(prefix_len) = prefix.parse::<u8>() {
+                return Self::prefix_to_netmask(prefix_len);
+            }
+        }
+
+        // Try to parse as just a number (CIDR prefix without /)
+        if let Ok(prefix_len) = input.parse::<u8>() {
+            return Self::prefix_to_netmask(prefix_len);
+        }
+
+        // Otherwise, assume it's already a netmask and return as-is
+        input.to_string()
+    }
+
+    /// Convert CIDR prefix length to netmask
+    fn prefix_to_netmask(prefix: u8) -> String {
+        match prefix {
+            8 => "255.0.0.0".to_string(),
+            16 => "255.255.0.0".to_string(),
+            24 => "255.255.255.0".to_string(),
+            25 => "255.255.255.128".to_string(),
+            26 => "255.255.255.192".to_string(),
+            27 => "255.255.255.224".to_string(),
+            28 => "255.255.255.240".to_string(),
+            29 => "255.255.255.248".to_string(),
+            30 => "255.255.255.252".to_string(),
+            31 => "255.255.255.254".to_string(),
+            32 => "255.255.255.255".to_string(),
+            _ => {
+                // For other prefix lengths, calculate the netmask
+                let mask: u32 = if prefix == 0 {
+                    0
+                } else {
+                    !0u32 << (32 - prefix)
+                };
+                format!(
+                    "{}.{}.{}.{}",
+                    (mask >> 24) & 0xFF,
+                    (mask >> 16) & 0xFF,
+                    (mask >> 8) & 0xFF,
+                    mask & 0xFF
+                )
+            }
         }
     }
 }

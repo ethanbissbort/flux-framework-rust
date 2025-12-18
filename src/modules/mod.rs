@@ -6,6 +6,7 @@ pub mod netdata;
 pub mod network;
 pub mod ssh;
 pub mod sysctl;
+pub mod timezone;
 pub mod update;
 pub mod user;
 pub mod zsh;
@@ -65,6 +66,7 @@ impl ModuleManager {
             Box::new(update::UpdateModule::new()),
             Box::new(network::NetworkModule::new()),
             Box::new(hostname::HostnameModule::new()),
+            Box::new(timezone::TimezoneModule::new()),
             Box::new(user::UserModule::new()),
             Box::new(ssh::SshModule::new()),
             Box::new(firewall::FirewallModule::new()),

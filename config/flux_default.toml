@@ -47,7 +47,7 @@ modules_dir = ""
 default_gateway = ""
 
 # Default DNS servers
-default_dns = ["1.1.1.1", "8.8.8.8"]
+default_dns = ["10.0.1.101", "9.9.9.9"]
 
 # =============================================================================
 # MODULE CONFIGURATIONS
@@ -104,7 +104,7 @@ netmask = "255.255.255.0"
 gateway = ""
 
 # DNS servers (used for static configuration)
-dns_servers = ["1.1.1.1", "8.8.8.8"]
+dns_servers = ["10.0.1.101", "9.9.9.9"]
 
 # MTU size (leave 0 for default)
 mtu = 0

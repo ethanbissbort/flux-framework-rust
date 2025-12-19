@@ -242,107 +242,78 @@ impl ZshModule {
         Ok(())
     }
 
-    /// Generate .zshrc configuration
-    fn generate_zshrc(&self, theme: &str, plugins: Vec<&str>) -> String {
-        let plugin_list = plugins.join(" ");
+    /// Get all non-root users
+    fn get_non_root_users(&self) -> Result<Vec<String>> {
+        let mut users = Vec::new();
 
-        format!(
-            r#"# Flux Framework - ZSH Configuration
-# Path to Oh-My-Zsh installation
-export ZSH="$HOME/.oh-my-zsh"
+        // Read /etc/passwd to get all users
+        let passwd_content = fs::read_to_string("/etc/passwd")?;
 
-# Set theme
-ZSH_THEME="{theme}"
+        for line in passwd_content.lines() {
+            let parts: Vec<&str> = line.split(':').collect();
+            if parts.len() >= 7 {
+                let username = parts[0];
+                let uid: u32 = parts[2].parse().unwrap_or(0);
+                let shell = parts[6];
 
-# Plugins
-plugins=({plugins})
+                // Only include users with UID >= 1000 (regular users) and not root
+                // Also check they have a valid shell (not /bin/false, /usr/sbin/nologin, etc.)
+                if uid >= 1000 && uid < 65534 && username != "root"
+                    && !shell.contains("nologin") && !shell.contains("false") {
+                    users.push(username.to_string());
+                }
+            }
+        }
 
-# Load Oh-My-Zsh
-source $ZSH/oh-my-zsh.sh
-
-# User configuration
-
-# History settings
-HISTSIZE=10000
-SAVEHIST=10000
-setopt HIST_IGNORE_DUPS
-setopt HIST_FIND_NO_DUPS
-setopt SHARE_HISTORY
-
-# Aliases
-alias ll='ls -lah'
-alias la='ls -A'
-alias l='ls -CF'
-alias ..='cd ..'
-alias ...='cd ../..'
-alias grep='grep --color=auto'
-alias update='sudo apt update && sudo apt upgrade -y'
-alias ports='netstat -tulanp'
-alias meminfo='free -m -l -t'
-alias psg='ps aux | grep -v grep | grep -i -e VSZ -e'
-
-# Git aliases
-alias gs='git status'
-alias ga='git add'
-alias gc='git commit'
-alias gp='git push'
-alias gl='git log --oneline --graph --decorate'
-
-# Functions
-mkcd() {{
-    mkdir -p "$1" && cd "$1"
-}}
-
-extract() {{
-    if [ -f $1 ]; then
-        case $1 in
-            *.tar.bz2)   tar xjf $1     ;;
-            *.tar.gz)    tar xzf $1     ;;
-            *.bz2)       bunzip2 $1     ;;
-            *.rar)       unrar e $1     ;;
-            *.gz)        gunzip $1      ;;
-            *.tar)       tar xf $1      ;;
-            *.tbz2)      tar xjf $1     ;;
-            *.tgz)       tar xzf $1     ;;
-            *.zip)       unzip $1       ;;
-            *.Z)         uncompress $1  ;;
-            *.7z)        7z x $1        ;;
-            *)           echo "'$1' cannot be extracted via extract()" ;;
-        esac
-    else
-        echo "'$1' is not a valid file"
-    fi
-}}
-
-# Flux Framework shortcuts
-alias flux-update='sudo flux module update --menu'
-alias flux-config='sudo flux config'
-alias flux-modules='sudo flux module list'
-
-# Enable command correction
-setopt CORRECT
-
-# Enable advanced globbing
-setopt EXTENDED_GLOB
-
-# Case-insensitive completion
-zstyle ':completion:*' matcher-list 'm:{{a-zA-Z}}={{A-Za-z}}'
-
-# Colored completion
-zstyle ':completion:*' list-colors "${{(s.:.)LS_COLORS}}"
-
-# Load custom configuration
-if [ -f ~/.zshrc.local ]; then
-    source ~/.zshrc.local
-fi
-"#,
-            theme = theme,
-            plugins = plugin_list
-        )
+        Ok(users)
     }
 
-    /// Configure ZSH for a user
-    async fn configure_zsh(&self, username: &str, theme: &str) -> Result<()> {
+    /// Install FluxLab theme from config directory
+    async fn install_fluxlab_theme(&self, username: &str) -> Result<()> {
+        log_info("Installing FluxLab theme");
+
+        let user = get_user_by_name(username)
+            .ok_or_else(|| FluxError::Module(format!("User '{}' not found", username)))?;
+
+        let home_dir_str = user
+            .home_dir()
+            .to_str()
+            .ok_or_else(|| FluxError::system("Invalid UTF-8 in home directory path"))?;
+        let home_dir = PathBuf::from(home_dir_str);
+        let themes_dir = home_dir.join(".oh-my-zsh/custom/themes");
+
+        // Create themes directory if it doesn't exist
+        fs::create_dir_all(&themes_dir)?;
+
+        let theme_dest = themes_dir.join("fluxlab.zsh-theme");
+
+        // Copy theme from config directory
+        let theme_source = PathBuf::from("/etc/flux/config/fluxlab.zsh-theme")
+            .canonicalize()
+            .or_else(|_| PathBuf::from("config/fluxlab.zsh-theme").canonicalize())?;
+
+        if theme_source.exists() {
+            fs::copy(&theme_source, &theme_dest)?;
+
+            // Fix ownership
+            let uid = user.uid();
+            let gid = user.primary_group_id();
+            Command::new("chown")
+                .arg(format!("{}:{}", uid, gid))
+                .arg(&theme_dest)
+                .output()
+                .ok();
+
+            log_success("FluxLab theme installed");
+        } else {
+            log_warn("FluxLab theme file not found in config directory");
+        }
+
+        Ok(())
+    }
+
+    /// Configure ZSH for a user using config file
+    async fn configure_zsh(&self, username: &str, _theme: &str) -> Result<()> {
         log_info(&format!("Configuring ZSH for user: {}", username));
 
         let user = get_user_by_name(username)
@@ -362,33 +333,30 @@ fi
             log_info("Backed up existing .zshrc");
         }
 
-        // Determine plugins
-        let plugins = vec![
-            "git",
-            "docker",
-            "kubectl",
-            "sudo",
-            "zsh-autosuggestions",
-            "zsh-syntax-highlighting",
-        ];
+        // Copy .zshrc from config directory
+        let zshrc_source = PathBuf::from("/etc/flux/config/.zshrc")
+            .canonicalize()
+            .or_else(|_| PathBuf::from("config/.zshrc").canonicalize())?;
 
-        // Generate and write .zshrc
-        let zshrc_content = self.generate_zshrc(theme, plugins);
-        let zshrc_path_str = zshrc_path
-            .to_str()
-            .ok_or_else(|| FluxError::system("Invalid UTF-8 in .zshrc path"))?;
-        safe_write_file(zshrc_path_str, &zshrc_content, true)?;
+        if zshrc_source.exists() {
+            fs::copy(&zshrc_source, &zshrc_path)?;
 
-        // Fix ownership
-        let uid = user.uid();
-        let gid = user.primary_group_id();
-        Command::new("chown")
-            .arg(format!("{}:{}", uid, gid))
-            .arg(&zshrc_path)
-            .output()
-            .ok();
+            // Fix ownership
+            let uid = user.uid();
+            let gid = user.primary_group_id();
+            Command::new("chown")
+                .arg(format!("{}:{}", uid, gid))
+                .arg(&zshrc_path)
+                .output()
+                .ok();
 
-        log_success("ZSH configured successfully");
+            log_success("ZSH configured successfully");
+        } else {
+            return Err(FluxError::Module(
+                ".zshrc file not found in config directory".to_string()
+            ));
+        }
+
         Ok(())
     }
 
@@ -436,9 +404,8 @@ fi
         // Install Oh-My-Zsh
         self.install_oh_my_zsh(username).await?;
 
-        // Install plugins
-        let plugins = vec!["zsh-autosuggestions", "zsh-syntax-highlighting"];
-        self.install_plugins(username, plugins).await?;
+        // Install FluxLab theme
+        self.install_fluxlab_theme(username).await?;
 
         // Install theme if Powerlevel10k
         if theme == "powerlevel10k/powerlevel10k" {
@@ -454,6 +421,37 @@ fi
         }
 
         log_success("ZSH setup completed successfully!");
+        Ok(())
+    }
+
+    /// Setup ZSH for all non-root users
+    async fn setup_all_users(&self) -> Result<()> {
+        log_info("Setting up ZSH for all non-root users");
+
+        // Install ZSH first
+        self.install_zsh().await?;
+
+        // Get all non-root users
+        let users = self.get_non_root_users()?;
+
+        if users.is_empty() {
+            log_warn("No non-root users found to configure");
+            return Ok(());
+        }
+
+        log_info(&format!("Found {} non-root user(s): {}", users.len(), users.join(", ")));
+
+        // Setup for each user
+        for username in users {
+            log_info(&format!("Setting up ZSH for user: {}", username));
+
+            match self.full_setup(&username, "fluxlab", true).await {
+                Ok(_) => log_success(&format!("ZSH setup completed for {}", username)),
+                Err(e) => log_warn(&format!("Failed to setup ZSH for {}: {}", username, e)),
+            }
+        }
+
+        log_success("ZSH setup completed for all non-root users!");
         Ok(())
     }
 
@@ -591,13 +589,23 @@ EXAMPLES:
     }
 
     async fn execute(&self, args: Vec<String>, _config: &Config) -> Result<()> {
-        if args.is_empty() || args.contains(&"--menu".to_string()) {
+        // Default action: setup for all non-root users
+        if args.is_empty() {
+            return self.setup_all_users().await;
+        }
+
+        // Interactive menu
+        if args.contains(&"--menu".to_string()) {
             return self.show_menu().await;
         }
 
         let mut i = 0;
         while i < args.len() {
             match args[i].as_str() {
+                "--setup-all" => {
+                    self.setup_all_users().await?;
+                    i += 1;
+                }
                 "--setup" => {
                     if i + 1 < args.len() {
                         let username = &args[i + 1];
@@ -606,13 +614,13 @@ EXAMPLES:
                                 if theme_idx + 1 < args.len() {
                                     &args[theme_idx + 1]
                                 } else {
-                                    "robbyrussell"
+                                    "fluxlab"
                                 }
                             } else {
-                                "robbyrussell"
+                                "fluxlab"
                             }
                         } else {
-                            "robbyrussell"
+                            "fluxlab"
                         };
 
                         self.full_setup(username, theme, true).await?;

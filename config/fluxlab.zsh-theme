@@ -1,22 +1,41 @@
-# FluxLab ZSH Theme
-# A clean and informative theme for Flux Framework
+# oh-my-zsh FluxLabs Theme
 
-# Colors
-local ret_status="%(?:%{$fg_bold[green]%}➜ :%{$fg_bold[red]%}➜ )"
-local user_host="%{$fg[cyan]%}%n@%m%{$reset_color%}"
-local current_dir="%{$fg_bold[blue]%}%~%{$reset_color%}"
-local git_branch='$(git_prompt_info)'
-local time_stamp="%{$fg[yellow]%}[%*]%{$reset_color%}"
+_PATH="%U%F{white}%2~%f%u"
 
-# Prompt
-PROMPT="${time_stamp} ${user_host} ${current_dir} ${git_branch}
-${ret_status}%{$reset_color%} "
+if [[ $EUID -eq 0 ]]; then
+  _USERNAME="%F{red}%n%f"
+  _LIBERTY="%F{red}#%f"
+else
+  _USERNAME="%F{130}%n%f"
+  _LIBERTY="%F{116}$%f"
+fi
+_USERNAME="$_USERNAME%F{10}@%m%f"
+_LIBERTY="$_LIBERTY"
 
-# Git prompt settings
-ZSH_THEME_GIT_PROMPT_PREFIX="%{$fg[magenta]%}("
-ZSH_THEME_GIT_PROMPT_SUFFIX="%{$reset_color%} "
-ZSH_THEME_GIT_PROMPT_DIRTY="%{$fg[magenta]%})%{$fg[red]%} ✗"
-ZSH_THEME_GIT_PROMPT_CLEAN="%{$fg[magenta]%})%{$fg[green]%} ✓"
 
-# Right prompt with timestamp
-RPROMPT=""
+get_space () {
+  local STR=$1$2
+  local zero='%([BSUbfksu]|([FB]|){*})'
+  local LENGTH=${#${(S%%)STR//$~zero/}}
+  local SPACES=$(( COLUMNS - LENGTH - ${ZLE_RPROMPT_INDENT:-1} ))
+
+  (( SPACES > 0 )) || return
+  printf ' %.0s' {1..$SPACES}
+}
+
+_1LEFT="%B%K{153}$_USERNAME%k %K{57}$_PATH%k%b"
+_1RIGHT="[%* %w]"
+
+fluxlabs_precmd () {
+  _1SPACES=`get_space $_1LEFT $_1RIGHT`
+  print
+  print -rP "$_1LEFT$_1SPACES$_1RIGHT"
+}
+
+setopt prompt_subst
+PROMPT='> $_LIBERTY '
+# RPROMPT='$_1LEFT $_1RIGHT'
+
+
+autoload -U add-zsh-hook
+add-zsh-hook precmd fluxlabs_precmd

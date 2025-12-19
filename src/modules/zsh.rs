@@ -404,10 +404,6 @@ impl ZshModule {
         // Install Oh-My-Zsh
         self.install_oh_my_zsh(username).await?;
 
-        // Install plugins
-        let plugins = vec!["zsh-autosuggestions", "zsh-syntax-highlighting"];
-        self.install_plugins(username, plugins).await?;
-
         // Install FluxLab theme
         self.install_fluxlab_theme(username).await?;
 

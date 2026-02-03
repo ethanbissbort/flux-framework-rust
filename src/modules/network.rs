@@ -587,19 +587,27 @@ impl NetworkModule {
         }
     }
     
+    /// Convert netmask to CIDR prefix length
+    /// Properly calculates prefix for any valid netmask (e.g., 255.255.192.0 -> 18)
     fn netmask_to_prefix(&self, netmask: &str) -> u8 {
-        match netmask {
-            "255.255.255.0" => 24,
-            "255.255.0.0" => 16,
-            "255.0.0.0" => 8,
-            "255.255.255.128" => 25,
-            "255.255.255.192" => 26,
-            "255.255.255.224" => 27,
-            "255.255.255.240" => 28,
-            "255.255.255.248" => 29,
-            "255.255.255.252" => 30,
-            _ => 24, // Default
+        // Parse the netmask octets
+        let parts: Vec<&str> = netmask.split('.').collect();
+        if parts.len() != 4 {
+            return 24; // Default for invalid format
         }
+
+        // Convert to u32
+        let mut mask: u32 = 0;
+        for part in parts {
+            if let Ok(octet) = part.parse::<u8>() {
+                mask = (mask << 8) | (octet as u32);
+            } else {
+                return 24; // Default for invalid octet
+            }
+        }
+
+        // Count leading ones (the CIDR prefix length)
+        mask.leading_ones() as u8
     }
 
     /// Convert CIDR notation or netmask to netmask format
@@ -691,5 +699,115 @@ impl Module for NetworkModule {
             .map_err(|e| FluxError::validation(format!("Invalid arguments: {}", e)))?;
 
         self.execute_network(&matches, &ctx).await
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_netmask_to_prefix_common_masks() {
+        let module = NetworkModule::new();
+
+        // Common /8, /16, /24 masks
+        assert_eq!(module.netmask_to_prefix("255.0.0.0"), 8);
+        assert_eq!(module.netmask_to_prefix("255.255.0.0"), 16);
+        assert_eq!(module.netmask_to_prefix("255.255.255.0"), 24);
+    }
+
+    #[test]
+    fn test_netmask_to_prefix_class_b_subnets() {
+        let module = NetworkModule::new();
+
+        // Class B subnets - these were MISSING from the original table
+        assert_eq!(module.netmask_to_prefix("255.255.128.0"), 17);
+        assert_eq!(module.netmask_to_prefix("255.255.192.0"), 18);  // THE BUG: was returning 24
+        assert_eq!(module.netmask_to_prefix("255.255.224.0"), 19);
+        assert_eq!(module.netmask_to_prefix("255.255.240.0"), 20);
+        assert_eq!(module.netmask_to_prefix("255.255.248.0"), 21);
+        assert_eq!(module.netmask_to_prefix("255.255.252.0"), 22);
+        assert_eq!(module.netmask_to_prefix("255.255.254.0"), 23);
+    }
+
+    #[test]
+    fn test_netmask_to_prefix_class_c_subnets() {
+        let module = NetworkModule::new();
+
+        // Class C subnets
+        assert_eq!(module.netmask_to_prefix("255.255.255.128"), 25);
+        assert_eq!(module.netmask_to_prefix("255.255.255.192"), 26);
+        assert_eq!(module.netmask_to_prefix("255.255.255.224"), 27);
+        assert_eq!(module.netmask_to_prefix("255.255.255.240"), 28);
+        assert_eq!(module.netmask_to_prefix("255.255.255.248"), 29);
+        assert_eq!(module.netmask_to_prefix("255.255.255.252"), 30);
+        assert_eq!(module.netmask_to_prefix("255.255.255.254"), 31);
+        assert_eq!(module.netmask_to_prefix("255.255.255.255"), 32);
+    }
+
+    #[test]
+    fn test_netmask_to_prefix_class_a_subnets() {
+        let module = NetworkModule::new();
+
+        // Class A subnets - also missing from original table
+        assert_eq!(module.netmask_to_prefix("255.128.0.0"), 9);
+        assert_eq!(module.netmask_to_prefix("255.192.0.0"), 10);
+        assert_eq!(module.netmask_to_prefix("255.224.0.0"), 11);
+        assert_eq!(module.netmask_to_prefix("255.240.0.0"), 12);
+        assert_eq!(module.netmask_to_prefix("255.248.0.0"), 13);
+        assert_eq!(module.netmask_to_prefix("255.252.0.0"), 14);
+        assert_eq!(module.netmask_to_prefix("255.254.0.0"), 15);
+    }
+
+    #[test]
+    fn test_netmask_to_prefix_edge_cases() {
+        let module = NetworkModule::new();
+
+        // Edge cases
+        assert_eq!(module.netmask_to_prefix("0.0.0.0"), 0);
+
+        // Invalid formats should default to 24
+        assert_eq!(module.netmask_to_prefix("invalid"), 24);
+        assert_eq!(module.netmask_to_prefix("255.255.255"), 24);
+        assert_eq!(module.netmask_to_prefix(""), 24);
+    }
+
+    #[test]
+    fn test_prefix_to_netmask() {
+        // Test the reverse conversion
+        assert_eq!(NetworkModule::prefix_to_netmask(8), "255.0.0.0");
+        assert_eq!(NetworkModule::prefix_to_netmask(16), "255.255.0.0");
+        assert_eq!(NetworkModule::prefix_to_netmask(18), "255.255.192.0");
+        assert_eq!(NetworkModule::prefix_to_netmask(24), "255.255.255.0");
+        assert_eq!(NetworkModule::prefix_to_netmask(26), "255.255.255.192");
+        assert_eq!(NetworkModule::prefix_to_netmask(32), "255.255.255.255");
+    }
+
+    #[test]
+    fn test_normalize_netmask() {
+        // CIDR notation with /
+        assert_eq!(NetworkModule::normalize_netmask("/24"), "255.255.255.0");
+        assert_eq!(NetworkModule::normalize_netmask("/18"), "255.255.192.0");
+        assert_eq!(NetworkModule::normalize_netmask("/16"), "255.255.0.0");
+
+        // CIDR notation without /
+        assert_eq!(NetworkModule::normalize_netmask("24"), "255.255.255.0");
+        assert_eq!(NetworkModule::normalize_netmask("18"), "255.255.192.0");
+
+        // Already a netmask - pass through
+        assert_eq!(NetworkModule::normalize_netmask("255.255.255.0"), "255.255.255.0");
+        assert_eq!(NetworkModule::normalize_netmask("255.255.192.0"), "255.255.192.0");
+    }
+
+    #[test]
+    fn test_roundtrip_conversion() {
+        let module = NetworkModule::new();
+
+        // Test that converting netmask -> prefix -> netmask gives the same result
+        for prefix in [8, 9, 10, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32] {
+            let netmask = NetworkModule::prefix_to_netmask(prefix);
+            let computed_prefix = module.netmask_to_prefix(&netmask);
+            assert_eq!(computed_prefix, prefix, "Roundtrip failed for prefix {}", prefix);
+        }
     }
 }

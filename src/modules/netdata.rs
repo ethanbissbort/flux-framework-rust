@@ -22,6 +22,12 @@ pub struct NetdataModule {
     base: ModuleBase,
 }
 
+impl Default for NetdataModule {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl NetdataModule {
     pub fn new() -> Self {
         let info = ModuleInfo {
@@ -167,6 +173,7 @@ impl NetdataModule {
         log_info("Configuring Netdata");
 
         let config_path = PathBuf::from(NETDATA_CONFIG_DIR).join("netdata.conf");
+        let cloud_enabled = if enable_cloud { "yes" } else { "no" };
 
         // Generate configuration
         let config = format!(
@@ -200,8 +207,11 @@ impl NetdataModule {
     enabled = yes
     default repeat warning = 300
     default repeat critical = 60
+
+[cloud]
+    enabled = {}
 "#,
-            web_port
+            web_port, cloud_enabled
         );
 
         let config_path_str = config_path
@@ -280,7 +290,7 @@ info: Disk space usage is high
 
     /// Configure firewall for Netdata
     async fn configure_firewall(&self, port: u16) -> Result<()> {
-        log_info(&format!("Configuring firewall for Netdata (port {})", port));
+        log_info(format!("Configuring firewall for Netdata (port {})", port));
 
         // Check which firewall is active
         if check_command("ufw").is_ok() {
@@ -293,7 +303,7 @@ info: Disk space usage is high
                 let status = String::from_utf8_lossy(&out.stdout);
                 if status.contains("Status: active") {
                     execute_command("ufw", &["allow", &port.to_string()])?;
-                    log_success(&format!("UFW rule added for port {}", port));
+                    log_success(format!("UFW rule added for port {}", port));
                 }
             }
         } else if check_command("firewall-cmd").is_ok() {
@@ -302,7 +312,7 @@ info: Disk space usage is high
                 &["--permanent", &format!("--add-port={}/tcp", port)],
             )?;
             execute_command("firewall-cmd", &["--reload"])?;
-            log_success(&format!("firewalld rule added for port {}", port));
+            log_success(format!("firewalld rule added for port {}", port));
         } else {
             log_warn("No supported firewall detected. You may need to manually configure firewall rules.");
         }
@@ -391,7 +401,7 @@ info: Disk space usage is high
 
         if let Some(out) = output {
             let stdout = String::from_utf8_lossy(&out.stdout);
-            let ip = stdout.trim().split_whitespace().next().unwrap_or("localhost");
+            let ip = stdout.split_whitespace().next().unwrap_or("localhost");
             println!("\n{}", "=".repeat(70));
             println!("Netdata Web Interface: http://{}:19999", ip);
             println!("{}", "=".repeat(70));

@@ -140,7 +140,7 @@ impl FluxCli {
     pub fn select_workflow() -> Result<String> {
         use dialoguer::{theme::ColorfulTheme, Select};
         
-        let workflows = vec![
+        let workflows = [
             ("essential", "Basic system setup (update, certs, sysctl, ssh)"),
             ("complete", "Full system configuration"),
             ("security", "Security hardening workflow"),

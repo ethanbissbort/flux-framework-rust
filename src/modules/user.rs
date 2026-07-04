@@ -22,6 +22,12 @@ pub struct UserModule {
     base: ModuleBase,
 }
 
+impl Default for UserModule {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl UserModule {
     pub fn new() -> Self {
         let info = ModuleInfo {
@@ -48,12 +54,10 @@ impl UserModule {
         system_user: bool,
         groups: Option<Vec<&str>>,
     ) -> Result<()> {
-        log_info(&format!("Creating user: {}", username));
+        log_info(format!("Creating user: {}", username));
 
         // Validate username
-        if let Err(e) = validate_username(username) {
-            return Err(e);
-        }
+        validate_username(username)?;
 
         // Check if user already exists
         if get_user_by_name(username).is_some() {
@@ -104,7 +108,7 @@ impl UserModule {
             )));
         }
 
-        log_success(&format!("User '{}' created successfully", username));
+        log_success(format!("User '{}' created successfully", username));
 
         // Add to groups if specified
         if let Some(group_list) = groups {
@@ -116,7 +120,7 @@ impl UserModule {
 
     /// Create an admin user with sudo privileges
     async fn create_admin_user(&self, username: &str, github_user: Option<&str>) -> Result<()> {
-        log_info(&format!("Creating admin user: {}", username));
+        log_info(format!("Creating admin user: {}", username));
 
         // Create the user
         self.create_user(
@@ -146,19 +150,19 @@ impl UserModule {
 
         // Add GitHub SSH keys if specified
         if let Some(gh_user) = github_user {
-            log_info(&format!("Fetching SSH keys from GitHub for {}", gh_user));
+            log_info(format!("Fetching SSH keys from GitHub for {}", gh_user));
             if let Err(e) = self.add_github_keys(username, gh_user).await {
-                log_warn(&format!("Failed to fetch GitHub keys: {}", e));
+                log_warn(format!("Failed to fetch GitHub keys: {}", e));
             }
         }
 
         // Set password
-        log_info(&format!("Set password for user '{}'", username));
+        log_info(format!("Set password for user '{}'", username));
         if let Err(e) = self.set_user_password(username).await {
-            log_warn(&format!("Failed to set password: {}", e));
+            log_warn(format!("Failed to set password: {}", e));
         }
 
-        log_success(&format!("Admin user '{}' created successfully", username));
+        log_success(format!("Admin user '{}' created successfully", username));
         Ok(())
     }
 
@@ -169,14 +173,14 @@ impl UserModule {
             if get_group_by_name(group).is_none() {
                 // Create group if it doesn't exist (for custom groups)
                 if !["sudo", "wheel", "adm", "docker", "systemd-journal"].contains(group) {
-                    log_info(&format!("Creating group: {}", group));
+                    log_info(format!("Creating group: {}", group));
                     let output = Command::new("groupadd")
                         .arg(group)
                         .output()
                         .map_err(|e| FluxError::command_failed(format!("Failed to create group: {}", e)))?;
 
                     if !output.status.success() {
-                        log_warn(&format!("Group '{}' creation failed", group));
+                        log_warn(format!("Group '{}' creation failed", group));
                         continue;
                     }
                 }
@@ -192,34 +196,9 @@ impl UserModule {
                 .map_err(|e| FluxError::command_failed(format!("Failed to add user to group: {}", e)))?;
 
             if output.status.success() {
-                log_success(&format!("Added '{}' to group '{}'", username, group));
+                log_success(format!("Added '{}' to group '{}'", username, group));
             } else {
-                log_warn(&format!("Failed to add '{}' to group '{}'", username, group));
-            }
-        }
-
-        Ok(())
-    }
-
-    /// Remove user from specified groups
-    async fn remove_user_from_groups(&self, username: &str, groups: &[&str]) -> Result<()> {
-        for group in groups {
-            let output = Command::new("gpasswd")
-                .arg("-d")
-                .arg(username)
-                .arg(group)
-                .output()
-                .map_err(|e| {
-                    FluxError::command_failed(format!("Failed to remove user from group: {}", e))
-                })?;
-
-            if output.status.success() {
-                log_success(&format!("Removed '{}' from group '{}'", username, group));
-            } else {
-                log_warn(&format!(
-                    "Failed to remove '{}' from group '{}'",
-                    username, group
-                ));
+                log_warn(format!("Failed to add '{}' to group '{}'", username, group));
             }
         }
 
@@ -254,7 +233,7 @@ impl UserModule {
                 FluxError::system(format!("Failed to set .ssh permissions: {}", e))
             })?;
 
-            log_success(&format!("Created .ssh directory for '{}'", username));
+            log_success(format!("Created .ssh directory for '{}'", username));
         }
 
         // Create authorized_keys if it doesn't exist
@@ -284,7 +263,7 @@ impl UserModule {
             .output()
             .map_err(|e| FluxError::command_failed(format!("Failed to set ownership: {}", e)))?;
 
-        log_success(&format!("SSH directory configured for '{}'", username));
+        log_success(format!("SSH directory configured for '{}'", username));
         Ok(())
     }
 
@@ -292,7 +271,7 @@ impl UserModule {
     async fn add_github_keys(&self, username: &str, github_user: &str) -> Result<()> {
         let url = format!("https://github.com/{}.keys", github_user);
 
-        log_info(&format!("Fetching SSH keys from {}", url));
+        log_info(format!("Fetching SSH keys from {}", url));
 
         let client = reqwest::Client::new();
         let response = client
@@ -327,7 +306,7 @@ impl UserModule {
             }
         }
 
-        log_success(&format!(
+        log_success(format!(
             "Added GitHub SSH keys for '{}'",
             github_user
         ));
@@ -402,13 +381,13 @@ impl UserModule {
             ));
         }
 
-        log_success(&format!("Password set for '{}'", username));
+        log_success(format!("Password set for '{}'", username));
         Ok(())
     }
 
     /// Delete a user
     async fn delete_user(&self, username: &str, remove_home: bool, backup: bool) -> Result<()> {
-        log_info(&format!("Deleting user: {}", username));
+        log_info(format!("Deleting user: {}", username));
 
         // Check if user exists
         let user = get_user_by_name(username)
@@ -423,7 +402,7 @@ impl UserModule {
             let timestamp = chrono::Local::now().format("%Y%m%d_%H%M%S");
             let backup_path = backup_dir.join(format!("{}-{}.tar.gz", username, timestamp));
 
-            log_info(&format!("Backing up home directory to {:?}", backup_path));
+            log_info(format!("Backing up home directory to {:?}", backup_path));
 
             let parent_dir = home_dir
                 .parent()
@@ -442,7 +421,7 @@ impl UserModule {
                 .map_err(|e| FluxError::command_failed(format!("Failed to backup home directory: {}", e)))?;
 
             if output.status.success() {
-                log_success(&format!("Home directory backed up to {:?}", backup_path));
+                log_success(format!("Home directory backed up to {:?}", backup_path));
             } else {
                 log_warn("Failed to backup home directory");
             }
@@ -467,7 +446,7 @@ impl UserModule {
             )));
         }
 
-        log_success(&format!("User '{}' deleted successfully", username));
+        log_success(format!("User '{}' deleted successfully", username));
         Ok(())
     }
 

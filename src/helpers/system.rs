@@ -150,7 +150,7 @@ pub fn get_system_status() -> Result<SystemStatus> {
     let os_info = format!(
         "{} {}",
         System::name().unwrap_or_else(|| "Unknown".to_string()),
-        System::os_version().unwrap_or_else(|| "".to_string())
+        System::os_version().unwrap_or_default()
     );
 
     let kernel_version = System::kernel_version().unwrap_or_else(|| "Unknown".to_string());
@@ -241,7 +241,7 @@ pub fn get_primary_ip() -> Result<String> {
     }
     
     // Fallback: get IP from default route
-    if let Ok(output) = Command::new("ip").args(&["route", "get", "1"]).output() {
+    if let Ok(output) = Command::new("ip").args(["route", "get", "1"]).output() {
         if output.status.success() {
             if let Ok(route) = String::from_utf8(output.stdout) {
                 for part in route.split_whitespace() {
@@ -260,7 +260,7 @@ pub fn get_primary_ip() -> Result<String> {
 
 /// Get default gateway
 pub fn get_default_gateway() -> Result<String> {
-    if let Ok(output) = Command::new("ip").args(&["route", "show", "default"]).output() {
+    if let Ok(output) = Command::new("ip").args(["route", "show", "default"]).output() {
         if output.status.success() {
             if let Ok(route) = String::from_utf8(output.stdout) {
                 // Parse: default via X.X.X.X dev ...
@@ -282,7 +282,7 @@ pub fn is_service_active(service: &str) -> Result<bool> {
     }
     
     let output = Command::new("systemctl")
-        .args(&["is-active", service])
+        .args(["is-active", service])
         .output()?;
     
     Ok(output.status.success())
@@ -295,7 +295,7 @@ pub fn check_updates_available() -> Result<u32> {
     if distro.is_debian_based() {
         // Check apt for updates
         if let Ok(output) = Command::new("apt")
-            .args(&["list", "--upgradable"])
+            .args(["list", "--upgradable"])
             .output()
         {
             if output.status.success() {
@@ -313,7 +313,7 @@ pub fn check_updates_available() -> Result<u32> {
         let pkg_manager = if which::which("dnf").is_ok() { "dnf" } else { "yum" };
         
         if let Ok(output) = Command::new(pkg_manager)
-            .args(&["check-update"])
+            .args(["check-update"])
             .output()
         {
             // yum/dnf returns 100 when updates are available
@@ -365,7 +365,7 @@ pub fn check_command(command: &str) -> Result<bool> {
 /// Get OS information as a string
 pub fn get_os_info() -> Result<String> {
     let os_name = System::name().unwrap_or_else(|| "Unknown".to_string());
-    let os_version = System::os_version().unwrap_or_else(|| "".to_string());
+    let os_version = System::os_version().unwrap_or_default();
     let kernel_version = System::kernel_version().unwrap_or_else(|| "Unknown".to_string());
 
     Ok(format!("{} {} (kernel {})", os_name, os_version, kernel_version))
@@ -377,10 +377,10 @@ pub fn restart_service(service: &str) -> Result<()> {
         return Err(FluxError::unsupported("systemd not available"));
     }
 
-    log_info(&format!("Restarting service: {}", service));
+    log_info(format!("Restarting service: {}", service));
 
     let output = Command::new("systemctl")
-        .args(&["restart", service])
+        .args(["restart", service])
         .output()
         .map_err(|e| FluxError::command_failed(format!("Failed to restart {}: {}", service, e)))?;
 
@@ -474,7 +474,7 @@ fn get_installed_kernel_version() -> Result<String> {
     
     // Method 1: dpkg (Debian/Ubuntu)
     if let Ok(output) = Command::new("dpkg")
-        .args(&["-l", "linux-image-*"])
+        .args(["-l", "linux-image-*"])
         .output() 
     {
         if output.status.success() {
@@ -493,7 +493,7 @@ fn get_installed_kernel_version() -> Result<String> {
     
     // Method 2: rpm (Red Hat/CentOS)
     if let Ok(output) = Command::new("rpm")
-        .args(&["-q", "kernel", "--last"])
+        .args(["-q", "kernel", "--last"])
         .output()
     {
         if output.status.success() {
@@ -561,7 +561,7 @@ pub fn is_service_active_enhanced(service: &str) -> Result<bool> {
     
     // Use systemctl to check service status
     match Command::new("systemctl")
-        .args(&["is-active", service])
+        .args(["is-active", service])
         .output()
     {
         Ok(output) => {
@@ -578,7 +578,7 @@ pub fn is_service_active_enhanced(service: &str) -> Result<bool> {
 fn check_service_sysvinit(service: &str) -> Result<bool> {
     // Try service command
     if let Ok(output) = Command::new("service")
-        .args(&[service, "status"])
+        .args([service, "status"])
         .output()
     {
         return Ok(output.status.success());
@@ -670,7 +670,7 @@ fn count_security_updates() -> Result<u32> {
     if distro.is_debian_based() {
         // Check for security updates in apt
         if let Ok(output) = Command::new("apt")
-            .args(&["list", "--upgradable"])
+            .args(["list", "--upgradable"])
             .output()
         {
             if output.status.success() {
@@ -686,7 +686,7 @@ fn count_security_updates() -> Result<u32> {
         let pkg_manager = if which::which("dnf").is_ok() { "dnf" } else { "yum" };
         
         if let Ok(output) = Command::new(pkg_manager)
-            .args(&["updateinfo", "list", "security"])
+            .args(["updateinfo", "list", "security"])
             .output()
         {
             if output.status.success() {
@@ -709,7 +709,7 @@ fn get_failed_services() -> Result<Vec<String>> {
     }
     
     let output = Command::new("systemctl")
-        .args(&["--failed", "--no-legend", "--no-pager"])
+        .args(["--failed", "--no-legend", "--no-pager"])
         .output()
         .map_err(|e| FluxError::system(format!("Failed to get failed services: {}", e)))?;
     
@@ -790,7 +790,7 @@ fn parse_meminfo_value(line: &str) -> Result<u64> {
 /// Get inode usage for all mounted filesystems
 fn get_inodes_usage() -> Result<HashMap<String, InodesUsage>> {
     let output = Command::new("df")
-        .args(&["-i"])
+        .args(["-i"])
         .output()
         .map_err(|e| FluxError::system(format!("Failed to get inode usage: {}", e)))?;
     

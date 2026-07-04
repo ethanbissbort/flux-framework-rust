@@ -64,15 +64,17 @@ pub fn validate_hostname(hostname: &str) -> Result<()> {
 
 /// Validate port number
 pub fn validate_port(port: &str) -> Result<u16> {
+    // Parse as u32 so out-of-range values (e.g. 65536) are reported as a range
+    // error rather than a parse error. A valid port is 1..=65535.
     let port_num = port
-        .parse::<u16>()
+        .parse::<u32>()
         .map_err(|_| FluxError::validation("Port must be a number"))?;
-    
-    if port_num == 0 || port_num > 65535 {
+
+    if !(1..=65535).contains(&port_num) {
         return Err(FluxError::validation("Port must be between 1 and 65535"));
     }
-    
-    Ok(port_num)
+
+    Ok(port_num as u16)
 }
 
 /// Validate VLAN ID
@@ -81,7 +83,7 @@ pub fn validate_vlan(vlan: &str) -> Result<u16> {
         .parse::<u16>()
         .map_err(|_| FluxError::validation("VLAN ID must be a number"))?;
     
-    if vlan_id < 1 || vlan_id > 4094 {
+    if !(1..=4094).contains(&vlan_id) {
         return Err(FluxError::validation("VLAN ID must be between 1 and 4094"));
     }
     

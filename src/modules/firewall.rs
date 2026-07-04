@@ -10,7 +10,6 @@ use crate::helpers::{
 };
 use crate::modules::{Module, ModuleBase, ModuleInfo};
 use async_trait::async_trait;
-use std::collections::HashMap;
 use std::fs;
 use std::process::Command;
 
@@ -27,6 +26,12 @@ pub enum FirewallType {
 
 pub struct FirewallModule {
     base: ModuleBase,
+}
+
+impl Default for FirewallModule {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 impl FirewallModule {
@@ -178,7 +183,7 @@ impl FirewallModule {
 
     /// Add UFW rule
     async fn add_ufw_rule(&self, port: u16, protocol: &str, comment: Option<&str>) -> Result<()> {
-        log_info(&format!("Adding UFW rule: {}/{}", port, protocol));
+        log_info(format!("Adding UFW rule: {}/{}", port, protocol));
 
         let mut args = vec!["allow".to_string()];
         if let Some(cmt) = comment {
@@ -190,13 +195,13 @@ impl FirewallModule {
         let args_str: Vec<&str> = args.iter().map(|s| s.as_str()).collect();
         execute_command("ufw", &args_str)?;
 
-        log_success(&format!("UFW rule added: {}/{}", port, protocol));
+        log_success(format!("UFW rule added: {}/{}", port, protocol));
         Ok(())
     }
 
     /// Add firewalld rule
     async fn add_firewalld_rule(&self, port: u16, protocol: &str, zone: &str) -> Result<()> {
-        log_info(&format!("Adding firewalld rule: {}/{} to zone {}", port, protocol, zone));
+        log_info(format!("Adding firewalld rule: {}/{} to zone {}", port, protocol, zone));
 
         execute_command(
             "firewall-cmd",
@@ -204,7 +209,7 @@ impl FirewallModule {
         )?;
         execute_command("firewall-cmd", &["--reload"])?;
 
-        log_success(&format!("firewalld rule added: {}/{}", port, protocol));
+        log_success(format!("firewalld rule added: {}/{}", port, protocol));
         Ok(())
     }
 
@@ -229,10 +234,10 @@ impl FirewallModule {
 
     /// List firewalld rules
     async fn list_firewalld_rules(&self, zone: &str) -> Result<()> {
-        log_info(&format!("Listing firewalld rules for zone: {}", zone));
+        log_info(format!("Listing firewalld rules for zone: {}", zone));
 
         let output = Command::new("firewall-cmd")
-            .arg(&format!("--zone={}", zone))
+            .arg(format!("--zone={}", zone))
             .arg("--list-all")
             .output()
             .map_err(|e| FluxError::command_failed(format!("Failed to list firewalld rules: {}", e)))?;
@@ -241,35 +246,9 @@ impl FirewallModule {
         Ok(())
     }
 
-    /// Get service port mappings
-    fn get_service_ports(&self) -> HashMap<String, (u16, String)> {
-        let mut services = HashMap::new();
-
-        services.insert("ssh".to_string(), (22, "tcp".to_string()));
-        services.insert("http".to_string(), (80, "tcp".to_string()));
-        services.insert("https".to_string(), (443, "tcp".to_string()));
-        services.insert("mysql".to_string(), (3306, "tcp".to_string()));
-        services.insert("postgresql".to_string(), (5432, "tcp".to_string()));
-        services.insert("redis".to_string(), (6379, "tcp".to_string()));
-        services.insert("mongodb".to_string(), (27017, "tcp".to_string()));
-        services.insert("docker".to_string(), (2376, "tcp".to_string()));
-        services.insert("kubernetes".to_string(), (6443, "tcp".to_string()));
-        services.insert("smtp".to_string(), (25, "tcp".to_string()));
-        services.insert("smtps".to_string(), (465, "tcp".to_string()));
-        services.insert("imap".to_string(), (143, "tcp".to_string()));
-        services.insert("imaps".to_string(), (993, "tcp".to_string()));
-        services.insert("pop3".to_string(), (110, "tcp".to_string()));
-        services.insert("pop3s".to_string(), (995, "tcp".to_string()));
-        services.insert("dns".to_string(), (53, "udp".to_string()));
-        services.insert("ntp".to_string(), (123, "udp".to_string()));
-        services.insert("netdata".to_string(), (19999, "tcp".to_string()));
-
-        services
-    }
-
     /// Apply security preset
     async fn apply_preset(&self, preset: &str) -> Result<()> {
-        log_info(&format!("Applying firewall preset: {}", preset));
+        log_info(format!("Applying firewall preset: {}", preset));
 
         let fw_type = self.detect_firewall().await?;
 
@@ -323,13 +302,13 @@ impl FirewallModule {
                     self.add_firewalld_rule(port, protocol, "public").await?;
                 }
                 _ => {
-                    log_warn(&format!("Cannot apply preset with firewall type: {:?}", fw_type));
+                    log_warn(format!("Cannot apply preset with firewall type: {:?}", fw_type));
                     break;
                 }
             }
         }
 
-        log_success(&format!("Preset '{}' applied successfully", preset));
+        log_success(format!("Preset '{}' applied successfully", preset));
         Ok(())
     }
 
@@ -354,7 +333,7 @@ impl FirewallModule {
 
                 fs::write(&backup_path, output.stdout)?;
 
-                log_success(&format!("UFW configuration backed up to: {}", backup_path));
+                log_success(format!("UFW configuration backed up to: {}", backup_path));
                 Ok(backup_path)
             }
             FirewallType::Firewalld => {
@@ -364,7 +343,7 @@ impl FirewallModule {
                 // Copy firewalld configuration
                 execute_command("cp", &["-r", "/etc/firewalld", &backup_path])?;
 
-                log_success(&format!("firewalld configuration backed up to: {}", backup_path));
+                log_success(format!("firewalld configuration backed up to: {}", backup_path));
                 Ok(backup_path)
             }
             _ => Err(FluxError::Module("No supported firewall to backup".to_string()))
@@ -423,6 +402,10 @@ impl FirewallModule {
             } else {
                 "firewalld"
             };
+            log_info(format!(
+                "Recommended firewall for this distribution: {}",
+                default_fw
+            ));
 
             let fw_options = vec!["UFW", "firewalld"];
             let fw_choice = select_from_menu("Select firewall to install", &fw_options)?;

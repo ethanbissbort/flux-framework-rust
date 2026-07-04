@@ -21,6 +21,12 @@ pub struct CertsModule {
     base: ModuleBase,
 }
 
+impl Default for CertsModule {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl CertsModule {
     pub fn new() -> Self {
         let info = ModuleInfo {
@@ -54,7 +60,7 @@ impl CertsModule {
 
     /// Validate certificate file
     async fn validate_certificate(&self, cert_path: &Path) -> Result<bool> {
-        log_debug(&format!("Validating certificate: {:?}", cert_path));
+        log_debug(format!("Validating certificate: {:?}", cert_path));
 
         if !cert_path.exists() {
             return Err(FluxError::Module(format!(
@@ -78,14 +84,14 @@ impl CertsModule {
             Ok(true)
         } else {
             let stderr = String::from_utf8_lossy(&output.stderr);
-            log_warn(&format!("Certificate validation failed: {}", stderr));
+            log_warn(format!("Certificate validation failed: {}", stderr));
             Ok(false)
         }
     }
 
     /// Show certificate information
     async fn show_cert_info(&self, cert_path: &Path) -> Result<()> {
-        log_info(&format!("Certificate information for: {:?}", cert_path));
+        log_info(format!("Certificate information for: {:?}", cert_path));
 
         let output = Command::new("openssl")
             .arg("x509")
@@ -114,7 +120,7 @@ impl CertsModule {
 
     /// Install certificate to system trust store
     async fn install_certificate(&self, cert_path: &Path, cert_name: Option<&str>) -> Result<()> {
-        log_info(&format!("Installing certificate: {:?}", cert_path));
+        log_info(format!("Installing certificate: {:?}", cert_path));
 
         // Validate certificate first
         if !self.validate_certificate(cert_path).await? {
@@ -171,7 +177,7 @@ impl CertsModule {
             fs::set_permissions(&dest_path, perms)?;
         }
 
-        log_success(&format!(
+        log_success(format!(
             "Certificate copied to: {}",
             dest_path.display()
         ));
@@ -221,35 +227,33 @@ impl CertsModule {
         println!("{}", "-".repeat(85));
 
         let mut count = 0;
-        for entry in entries {
-            if let Ok(entry) = entry {
-                let path = entry.path();
-                if path.is_file() && path.extension().and_then(|s| s.to_str()) == Some("crt") {
-                    if let Ok(metadata) = entry.metadata() {
-                        let filename = entry.file_name();
-                        let size = metadata.len();
-                        let modified = metadata
-                            .modified()
-                            .ok()
-                            .and_then(|t| {
-                                use std::time::SystemTime;
-                                t.duration_since(SystemTime::UNIX_EPOCH).ok()
-                            })
-                            .map(|d| {
-                                chrono::DateTime::from_timestamp(d.as_secs() as i64, 0)
-                                    .map(|dt| dt.format("%Y-%m-%d %H:%M:%S").to_string())
-                                    .unwrap_or_else(|| "Unknown".to_string())
-                            })
-                            .unwrap_or_else(|| "Unknown".to_string());
+        for entry in entries.flatten() {
+            let path = entry.path();
+            if path.is_file() && path.extension().and_then(|s| s.to_str()) == Some("crt") {
+                if let Ok(metadata) = entry.metadata() {
+                    let filename = entry.file_name();
+                    let size = metadata.len();
+                    let modified = metadata
+                        .modified()
+                        .ok()
+                        .and_then(|t| {
+                            use std::time::SystemTime;
+                            t.duration_since(SystemTime::UNIX_EPOCH).ok()
+                        })
+                        .map(|d| {
+                            chrono::DateTime::from_timestamp(d.as_secs() as i64, 0)
+                                .map(|dt| dt.format("%Y-%m-%d %H:%M:%S").to_string())
+                                .unwrap_or_else(|| "Unknown".to_string())
+                        })
+                        .unwrap_or_else(|| "Unknown".to_string());
 
-                        println!(
-                            "{:<40} {:<15} {:<30}",
-                            filename.to_string_lossy(),
-                            format!("{} bytes", size),
-                            modified
-                        );
-                        count += 1;
-                    }
+                    println!(
+                        "{:<40} {:<15} {:<30}",
+                        filename.to_string_lossy(),
+                        format!("{} bytes", size),
+                        modified
+                    );
+                    count += 1;
                 }
             }
         }
@@ -265,7 +269,7 @@ impl CertsModule {
 
     /// Remove certificate from trust store
     async fn remove_certificate(&self, cert_name: &str) -> Result<()> {
-        log_info(&format!("Removing certificate: {}", cert_name));
+        log_info(format!("Removing certificate: {}", cert_name));
 
         let cert_dir = self.get_cert_dir()?;
         let filename = if cert_name.ends_with(".crt") {
@@ -294,7 +298,7 @@ impl CertsModule {
 
         // Remove the certificate file
         fs::remove_file(&cert_path)?;
-        log_success(&format!("Certificate file removed: {}", filename));
+        log_success(format!("Certificate file removed: {}", filename));
 
         // Update trust store
         self.update_trust_store().await?;
@@ -305,7 +309,7 @@ impl CertsModule {
 
     /// Install certificate from URL
     async fn install_from_url(&self, url: &str, cert_name: &str) -> Result<()> {
-        log_info(&format!("Downloading certificate from: {}", url));
+        log_info(format!("Downloading certificate from: {}", url));
 
         // Download certificate
         let client = reqwest::Client::builder()
@@ -336,7 +340,7 @@ impl CertsModule {
         let temp_path = temp_dir.join(format!("flux-cert-{}.crt", cert_name));
         fs::write(&temp_path, &cert_data)?;
 
-        log_success(&format!(
+        log_success(format!(
             "Certificate downloaded to: {}",
             temp_path.display()
         ));
@@ -382,7 +386,7 @@ impl CertsModule {
                         .install_from_file(&file_path, cert_name.as_deref())
                         .await
                     {
-                        log_error(&format!("Failed to install certificate: {}", e));
+                        log_error(format!("Failed to install certificate: {}", e));
                     }
                 }
                 1 => {
@@ -391,7 +395,7 @@ impl CertsModule {
                     let cert_name = prompt_input("Enter certificate name")?;
 
                     if let Err(e) = self.install_from_url(&url, &cert_name).await {
-                        log_error(&format!("Failed to install certificate: {}", e));
+                        log_error(format!("Failed to install certificate: {}", e));
                     }
                 }
                 2 => {
@@ -404,7 +408,7 @@ impl CertsModule {
                     let path = PathBuf::from(file_path);
 
                     if let Err(e) = self.show_cert_info(&path).await {
-                        log_error(&format!("Failed to show certificate info: {}", e));
+                        log_error(format!("Failed to show certificate info: {}", e));
                     }
                 }
                 4 => {
@@ -412,7 +416,7 @@ impl CertsModule {
                     let cert_name = prompt_input("Enter certificate name to remove")?;
 
                     if let Err(e) = self.remove_certificate(&cert_name).await {
-                        log_error(&format!("Failed to remove certificate: {}", e));
+                        log_error(format!("Failed to remove certificate: {}", e));
                     }
                 }
                 5 => {

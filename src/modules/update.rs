@@ -15,6 +15,12 @@ pub struct UpdateModule {
     base: ModuleBase,
 }
 
+impl Default for UpdateModule {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl UpdateModule {
     pub fn new() -> Self {
         let info = ModuleInfo {
@@ -99,7 +105,7 @@ impl UpdateModule {
             )
     }
     
-    async fn execute_update(&self, matches: &ArgMatches, ctx: &ModuleContext<'_>) -> Result<()> {
+    async fn execute_update(&self, matches: &ArgMatches, _ctx: &ModuleContext<'_>) -> Result<()> {
         let distro = detect_distro()?;
         
         // Check what action to perform
@@ -243,7 +249,7 @@ impl UpdateModule {
         
         let mut failed_packages = Vec::new();
         
-        for (i, package) in packages.iter().enumerate() {
+        for package in packages.iter() {
             progress.inc(1);
             progress.set_message(&format!("Installing {}", package));
             
@@ -432,7 +438,7 @@ APT::Periodic::Unattended-Upgrade "1";
         }
     }
     
-    fn get_essential_packages(&self, distro: &Distribution, include_dev: bool) -> Vec<String> {
+    fn get_essential_packages(&self, _distro: &Distribution, include_dev: bool) -> Vec<String> {
         let mut packages = vec![
             "curl", "wget", "git", "vim", "htop", "neofetch", "unzip",
             "ca-certificates", "gnupg", "lsb-release", "software-properties-common",
@@ -451,12 +457,11 @@ APT::Periodic::Unattended-Upgrade "1";
     }
     
     fn check_reboot_required(&self, distro: &Distribution) {
-        if distro.is_debian_based() {
-            if std::path::Path::new("/var/run/reboot-required").exists() {
+        if distro.is_debian_based()
+            && std::path::Path::new("/var/run/reboot-required").exists() {
                 log_warn("System reboot is required");
                 println!("{}", "⚠ System reboot recommended".yellow());
             }
-        }
     }
 }
 

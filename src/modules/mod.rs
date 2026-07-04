@@ -102,9 +102,10 @@ impl ModuleManager {
     }
     
     /// Get module by name
-    pub fn get_module(&self, name: &str) -> Result<&Box<dyn Module>> {
+    pub fn get_module(&self, name: &str) -> Result<&dyn Module> {
         self.modules
             .get(name)
+            .map(|m| m.as_ref())
             .ok_or_else(|| FluxError::module(format!("Module '{}' not found", name)))
     }
     

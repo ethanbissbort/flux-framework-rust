@@ -35,7 +35,7 @@ pub fn backup_file<P: AsRef<Path>>(file_path: P) -> Result<PathBuf> {
     let backup_path = parent_dir.join(backup_name);
     
     fs::copy(file_path, &backup_path)
-        .map_err(|e| FluxError::Io(e))?;
+        .map_err(FluxError::Io)?;
     
     log_info(format!("Backed up {} to {}", file_path.display(), backup_path.display()));
     
@@ -59,17 +59,17 @@ pub fn safe_write_file<P: AsRef<Path>>(
     let temp_path = file_path.with_extension("tmp");
     
     let mut temp_file = File::create(&temp_path)
-        .map_err(|e| FluxError::Io(e))?;
+        .map_err(FluxError::Io)?;
     
     temp_file.write_all(content.as_bytes())
-        .map_err(|e| FluxError::Io(e))?;
+        .map_err(FluxError::Io)?;
     
     temp_file.sync_all()
-        .map_err(|e| FluxError::Io(e))?;
+        .map_err(FluxError::Io)?;
     
     // Move temp file to final location
     fs::rename(&temp_path, file_path)
-        .map_err(|e| FluxError::Io(e))?;
+        .map_err(FluxError::Io)?;
     
     log_info(format!("Successfully wrote to {}", file_path.display()));
     
@@ -93,10 +93,10 @@ pub fn safe_append_file<P: AsRef<Path>>(
         .create(true)
         .append(true)
         .open(file_path)
-        .map_err(|e| FluxError::Io(e))?;
+        .map_err(FluxError::Io)?;
     
     file.write_all(content.as_bytes())
-        .map_err(|e| FluxError::Io(e))?;
+        .map_err(FluxError::Io)?;
     
     log_info(format!("Successfully appended to {}", file_path.display()));
     
@@ -108,7 +108,7 @@ pub fn read_file_to_string<P: AsRef<Path>>(file_path: P) -> Result<String> {
     let file_path = file_path.as_ref();
     
     fs::read_to_string(file_path)
-        .map_err(|e| FluxError::Io(e))
+        .map_err(FluxError::Io)
 }
 
 /// Check if file exists
@@ -121,7 +121,7 @@ pub fn create_dir_all<P: AsRef<Path>>(dir_path: P) -> Result<()> {
     let dir_path = dir_path.as_ref();
     
     fs::create_dir_all(dir_path)
-        .map_err(|e| FluxError::Io(e))?;
+        .map_err(FluxError::Io)?;
     
     Ok(())
 }
@@ -136,14 +136,14 @@ pub fn copy_file_with_perms<P: AsRef<Path>, Q: AsRef<Path>>(
     
     // Copy file
     fs::copy(src, dst)
-        .map_err(|e| FluxError::Io(e))?;
+        .map_err(FluxError::Io)?;
     
     // Copy permissions
     let metadata = fs::metadata(src)
-        .map_err(|e| FluxError::Io(e))?;
+        .map_err(FluxError::Io)?;
     
     fs::set_permissions(dst, metadata.permissions())
-        .map_err(|e| FluxError::Io(e))?;
+        .map_err(FluxError::Io)?;
     
     Ok(())
 }
@@ -155,7 +155,7 @@ pub fn set_permissions<P: AsRef<Path>>(file_path: P, mode: u32) -> Result<()> {
     let permissions = fs::Permissions::from_mode(mode);
     
     fs::set_permissions(file_path, permissions)
-        .map_err(|e| FluxError::Io(e))?;
+        .map_err(FluxError::Io)?;
     
     Ok(())
 }
@@ -168,7 +168,7 @@ pub fn create_temp_file(prefix: &str) -> Result<(File, PathBuf)> {
     let temp_path = temp_dir.join(file_name);
     
     let file = File::create(&temp_path)
-        .map_err(|e| FluxError::Io(e))?;
+        .map_err(FluxError::Io)?;
     
     Ok((file, temp_path))
 }
@@ -194,14 +194,14 @@ pub fn file_checksum<P: AsRef<Path>>(file_path: P) -> Result<String> {
     use sha2::{Digest, Sha256};
     
     let mut file = File::open(file_path.as_ref())
-        .map_err(|e| FluxError::Io(e))?;
+        .map_err(FluxError::Io)?;
     
     let mut hasher = Sha256::new();
     let mut buffer = [0; 8192];
     
     loop {
         let bytes_read = file.read(&mut buffer)
-            .map_err(|e| FluxError::Io(e))?;
+            .map_err(FluxError::Io)?;
         
         if bytes_read == 0 {
             break;
@@ -216,7 +216,7 @@ pub fn file_checksum<P: AsRef<Path>>(file_path: P) -> Result<String> {
 /// Get file size
 pub fn file_size<P: AsRef<Path>>(file_path: P) -> Result<u64> {
     let metadata = fs::metadata(file_path.as_ref())
-        .map_err(|e| FluxError::Io(e))?;
+        .map_err(FluxError::Io)?;
     
     Ok(metadata.len())
 }
@@ -232,10 +232,10 @@ pub fn remove_path<P: AsRef<Path>>(path: P) -> Result<()> {
     
     if path.is_dir() {
         fs::remove_dir_all(path)
-            .map_err(|e| FluxError::Io(e))?;
+            .map_err(FluxError::Io)?;
     } else {
         fs::remove_file(path)
-            .map_err(|e| FluxError::Io(e))?;
+            .map_err(FluxError::Io)?;
     }
     
     Ok(())
@@ -249,57 +249,9 @@ pub fn copy_dir<P: AsRef<Path>, Q: AsRef<Path>>(src: P, dst: Q) -> Result<()> {
     let options = CopyOptions::new();
     
     fs_extra::dir::copy(src, dst, &options)
-        .map_err(|e| FluxError::Io(std::io::Error::new(std::io::ErrorKind::Other, e)))?;
+        .map_err(|e| FluxError::Io(std::io::Error::other(e)))?;
     
     Ok(())
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use tempfile::TempDir;
-    
-    #[test]
-    fn test_backup_file() {
-        let temp_dir = TempDir::new().unwrap();
-        let test_file = temp_dir.path().join("test.txt");
-        
-        // Create test file
-        fs::write(&test_file, "test content").unwrap();
-        
-        // Backup file
-        let backup_path = backup_file(&test_file).unwrap();
-        
-        // Check backup exists and has same content
-        assert!(backup_path.exists());
-        assert_eq!(
-            fs::read_to_string(&backup_path).unwrap(),
-            "test content"
-        );
-    }
-    
-    #[test]
-    fn test_safe_write_file() {
-        let temp_dir = TempDir::new().unwrap();
-        let test_file = temp_dir.path().join("test.txt");
-        
-        // Write without backup
-        safe_write_file(&test_file, "new content", false).unwrap();
-        assert_eq!(fs::read_to_string(&test_file).unwrap(), "new content");
-        
-        // Write with backup
-        safe_write_file(&test_file, "updated content", true).unwrap();
-        assert_eq!(fs::read_to_string(&test_file).unwrap(), "updated content");
-        
-        // Check backup was created
-        let backups: Vec<_> = fs::read_dir(temp_dir.path())
-            .unwrap()
-            .filter_map(|e| e.ok())
-            .filter(|e| e.file_name().to_string_lossy().contains("backup"))
-            .collect();
-        
-        assert_eq!(backups.len(), 1);
-    }
 }
 
 
@@ -317,11 +269,11 @@ pub fn file_checksum_simple<P: AsRef<std::path::Path>>(file_path: P) -> Result<S
     use std::io::Read;
     
     let mut file = std::fs::File::open(file_path.as_ref())
-        .map_err(|e| FluxError::Io(e))?;
+        .map_err(FluxError::Io)?;
     
     let mut buffer = Vec::new();
     file.read_to_end(&mut buffer)
-        .map_err(|e| FluxError::Io(e))?;
+        .map_err(FluxError::Io)?;
     
     let mut hasher = DefaultHasher::new();
     buffer.hash(&mut hasher);
@@ -347,7 +299,7 @@ pub fn is_valid_base64_simple(input: &str) -> bool {
     }
     
     // Check length (base64 length should be multiple of 4)
-    if input.len() % 4 != 0 {
+    if !input.len().is_multiple_of(4) {
         return false;
     }
     
@@ -406,13 +358,61 @@ pub fn get_system_architecture() -> String {
 }
 
 /// Check available disk space for a given path
-pub fn check_disk_space(path: &str, required_mb: u64) -> Result<bool> {
-    if let Ok(metadata) = std::fs::metadata(path) {
+pub fn check_disk_space(path: &str, _required_mb: u64) -> Result<bool> {
+    if std::fs::metadata(path).is_ok() {
         // This is a simplified check - in reality you'd use statvfs or similar
         // For now, just return true as a placeholder
         log_warn(format!("Disk space check for {} not fully implemented", path));
         return Ok(true);
     }
-    
+
     Err(FluxError::system(format!("Cannot access path: {}", path)))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use tempfile::TempDir;
+    
+    #[test]
+    fn test_backup_file() {
+        let temp_dir = TempDir::new().unwrap();
+        let test_file = temp_dir.path().join("test.txt");
+        
+        // Create test file
+        fs::write(&test_file, "test content").unwrap();
+        
+        // Backup file
+        let backup_path = backup_file(&test_file).unwrap();
+        
+        // Check backup exists and has same content
+        assert!(backup_path.exists());
+        assert_eq!(
+            fs::read_to_string(&backup_path).unwrap(),
+            "test content"
+        );
+    }
+    
+    #[test]
+    fn test_safe_write_file() {
+        let temp_dir = TempDir::new().unwrap();
+        let test_file = temp_dir.path().join("test.txt");
+        
+        // Write without backup
+        safe_write_file(&test_file, "new content", false).unwrap();
+        assert_eq!(fs::read_to_string(&test_file).unwrap(), "new content");
+        
+        // Write with backup
+        safe_write_file(&test_file, "updated content", true).unwrap();
+        assert_eq!(fs::read_to_string(&test_file).unwrap(), "updated content");
+        
+        // Check backup was created
+        let backups: Vec<_> = fs::read_dir(temp_dir.path())
+            .unwrap()
+            .filter_map(|e| e.ok())
+            .filter(|e| e.file_name().to_string_lossy().contains("backup"))
+            .collect();
+        
+        assert_eq!(backups.len(), 1);
+    }
 }

@@ -33,6 +33,12 @@ pub struct NetworkConfig {
     pub vlan_id: Option<u16>,
 }
 
+impl Default for NetworkModule {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl NetworkModule {
     pub fn new() -> Self {
         let info = ModuleInfo {
@@ -86,7 +92,7 @@ impl NetworkModule {
                     .long("add-vlan")
                     .help("Add VLAN interface")
                     .num_args(2)
-                    .value_names(&["INTERFACE", "VLAN_ID"])
+                    .value_names(["INTERFACE", "VLAN_ID"])
             )
             .arg(
                 Arg::new("dhcp")
@@ -100,11 +106,11 @@ impl NetworkModule {
                     .long("static")
                     .help("Configure static IP")
                     .num_args(2)
-                    .value_names(&["INTERFACE", "IP_ADDRESS"])
+                    .value_names(["INTERFACE", "IP_ADDRESS"])
             )
     }
     
-    async fn execute_network(&self, matches: &ArgMatches, ctx: &ModuleContext<'_>) -> Result<()> {
+    async fn execute_network(&self, matches: &ArgMatches, _ctx: &ModuleContext<'_>) -> Result<()> {
         if matches.get_flag("list") {
             return self.list_interfaces().await;
         }
@@ -276,7 +282,7 @@ impl NetworkModule {
     }
     
     async fn apply_network_config(&self, config: &NetworkConfig) -> Result<()> {
-        let distro = detect_distro()?;
+        let _distro = detect_distro()?;
         let net_manager = self.detect_network_manager()?;
         
         log_info(format!("Applying network configuration using {}", net_manager));
@@ -371,7 +377,7 @@ impl NetworkModule {
         Ok(())
     }
     
-    async fn configure_interface_networkmanager(&self, config: &NetworkConfig) -> Result<()> {
+    async fn configure_interface_networkmanager(&self, _config: &NetworkConfig) -> Result<()> {
         // NetworkManager configuration would use nmcli commands
         log_warn("NetworkManager configuration not yet implemented");
         Err(FluxError::unsupported("NetworkManager support coming soon"))
@@ -469,8 +475,8 @@ impl NetworkModule {
         let vlan_id = validate_vlan(vlan_id)?;
         
         // Check if 802.1Q module is loaded
-        if execute_command("lsmod", &[]).is_ok() {
-            if !execute_command("lsmod", &[])?.contains("8021q") {
+        if execute_command("lsmod", &[]).is_ok()
+            && !execute_command("lsmod", &[])?.contains("8021q") {
                 log_info("Loading 802.1Q VLAN module");
                 execute_command("modprobe", &["8021q"])?;
                 
@@ -478,7 +484,6 @@ impl NetworkModule {
                 let modules_content = "8021q\n";
                 crate::helpers::file_ops::safe_append_file("/etc/modules", modules_content, true)?;
             }
-        }
         
         let config = NetworkConfig {
             interface: interface.to_string(),

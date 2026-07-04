@@ -196,14 +196,12 @@ fn list_network_interfaces() -> Result<Vec<String>> {
     
     let mut interfaces = Vec::new();
     
-    for entry in fs::read_dir("/sys/class/net")? {
-        if let Ok(entry) = entry {
-            let name = entry.file_name().to_string_lossy().to_string();
-            
-            // Skip loopback
-            if name != "lo" {
-                interfaces.push(name);
-            }
+    for entry in fs::read_dir("/sys/class/net")?.flatten() {
+        let name = entry.file_name().to_string_lossy().to_string();
+
+        // Skip loopback
+        if name != "lo" {
+            interfaces.push(name);
         }
     }
     

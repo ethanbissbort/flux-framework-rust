@@ -22,6 +22,12 @@ pub struct SysctlModule {
     base: ModuleBase,
 }
 
+impl Default for SysctlModule {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl SysctlModule {
     pub fn new() -> Self {
         let info = ModuleInfo {
@@ -357,14 +363,14 @@ impl SysctlModule {
             let timestamp = chrono::Local::now().format("%Y%m%d_%H%M%S");
             let backup_path = format!("{}/sysctl-{}.conf.bak", SYSCTL_BACKUP_DIR, timestamp);
             fs::copy(SYSCTL_CONFIG_PATH, &backup_path)?;
-            log_info(&format!("Backed up existing config to: {}", backup_path));
+            log_info(format!("Backed up existing config to: {}", backup_path));
         }
 
         // Generate and write configuration
         let config = self.generate_config(include_performance);
         safe_write_file(SYSCTL_CONFIG_PATH, &config, true)?;
 
-        log_success(&format!(
+        log_success(format!(
             "Sysctl configuration written to: {}",
             SYSCTL_CONFIG_PATH
         ));
@@ -381,7 +387,7 @@ impl SysctlModule {
             log_success("Sysctl hardening applied successfully");
         } else {
             let stderr = String::from_utf8_lossy(&output.stderr);
-            log_warn(&format!("Some sysctl parameters failed to apply: {}", stderr));
+            log_warn(format!("Some sysctl parameters failed to apply: {}", stderr));
             log_info("This is normal for parameters not supported by your kernel");
         }
 
@@ -390,9 +396,9 @@ impl SysctlModule {
 
     /// Show current sysctl configuration
     async fn show_config(&self) -> Result<()> {
-        if !fs::metadata(SYSCTL_CONFIG_PATH).is_ok() {
+        if fs::metadata(SYSCTL_CONFIG_PATH).is_err() {
             log_warn("Flux sysctl configuration not found");
-            log_info(&format!("Run 'flux module {} --apply' to create it", self.name()));
+            log_info(format!("Run 'flux module {} --apply' to create it", self.name()));
             return Ok(());
         }
 
@@ -412,7 +418,7 @@ impl SysctlModule {
     async fn verify_settings(&self) -> Result<()> {
         log_info("Verifying sysctl hardening settings");
 
-        if !fs::metadata(SYSCTL_CONFIG_PATH).is_ok() {
+        if fs::metadata(SYSCTL_CONFIG_PATH).is_err() {
             return Err(FluxError::Module(
                 "Flux sysctl configuration not found. Apply hardening first.".to_string(),
             ));
@@ -422,7 +428,7 @@ impl SysctlModule {
         let mut success_count = 0;
         let mut fail_count = 0;
 
-        println!("\n{:<50} {:<15} {:<15} {}", "Parameter", "Expected", "Current", "Status");
+        println!("\n{:<50} {:<15} {:<15} Status", "Parameter", "Expected", "Current");
         println!("{}", "-".repeat(95));
 
         for (key, (expected_value, _)) in params.iter() {
@@ -468,7 +474,7 @@ impl SysctlModule {
     async fn remove_hardening(&self) -> Result<()> {
         log_info("Removing sysctl hardening configuration");
 
-        if !fs::metadata(SYSCTL_CONFIG_PATH).is_ok() {
+        if fs::metadata(SYSCTL_CONFIG_PATH).is_err() {
             log_warn("Flux sysctl configuration not found");
             return Ok(());
         }
@@ -488,7 +494,7 @@ impl SysctlModule {
         let timestamp = chrono::Local::now().format("%Y%m%d_%H%M%S");
         let backup_path = format!("{}/sysctl-removed-{}.conf", SYSCTL_BACKUP_DIR, timestamp);
         fs::copy(SYSCTL_CONFIG_PATH, &backup_path)?;
-        log_info(&format!("Backed up config to: {}", backup_path));
+        log_info(format!("Backed up config to: {}", backup_path));
 
         // Remove configuration file
         fs::remove_file(SYSCTL_CONFIG_PATH)?;

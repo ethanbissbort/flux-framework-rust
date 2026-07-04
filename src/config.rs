@@ -6,7 +6,7 @@ use std::fs;
 use std::path::{Path, PathBuf};
 
 /// Main configuration structure
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
 pub struct Config {
     /// General settings
     pub general: GeneralConfig,
@@ -71,17 +71,6 @@ impl Default for GeneralConfig {
     }
 }
 
-impl Default for Config {
-    fn default() -> Self {
-        Self {
-            general: GeneralConfig::default(),
-            modules: HashMap::new(),
-            custom: HashMap::new(),
-            config_path: None,
-        }
-    }
-}
-
 impl Config {
     /// Get the default config directory path
     pub fn default_dir() -> Result<PathBuf> {
@@ -107,9 +96,10 @@ impl Config {
         if config_path.exists() {
             Self::from_file(&config_path)
         } else {
-            let mut config = Self::default();
-            config.config_path = Some(config_path);
-            Ok(config)
+            Ok(Self {
+                config_path: Some(config_path),
+                ..Default::default()
+            })
         }
     }
 

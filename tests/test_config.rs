@@ -13,7 +13,7 @@ fn test_default_config() {
     assert_eq!(config.general.default_admin_user, "fluxadmin");
     assert!(config.general.default_admin_groups.contains(&"sudo".to_string()));
     assert_eq!(config.general.log_level, "info");
-    assert_eq!(config.general.colored_output, true);
+    assert!(config.general.colored_output);
     assert_eq!(config.general.default_dns, vec!["1.1.1.1", "8.8.8.8"]);
 }
 
@@ -24,7 +24,7 @@ fn test_general_config_default() {
     assert_eq!(general.default_ssh_port, 22);
     assert_eq!(general.default_admin_user, "fluxadmin");
     assert_eq!(general.log_level, "info");
-    assert_eq!(general.colored_output, true);
+    assert!(general.colored_output);
 }
 
 #[test]
@@ -52,7 +52,7 @@ fn test_config_get_set() {
 
     config.set("colored_output", "false").unwrap();
     assert_eq!(config.get("colored_output").unwrap(), "false");
-    assert_eq!(config.general.colored_output, false);
+    assert!(!config.general.colored_output);
 
     // Test setting custom values
     config.set("custom_key", "custom_value").unwrap();
@@ -116,7 +116,7 @@ fn test_config_invalid_boolean() {
     assert!(result.is_err());
 
     // Value unchanged
-    assert_eq!(config.general.colored_output, true);
+    assert!(config.general.colored_output);
 }
 
 #[test]

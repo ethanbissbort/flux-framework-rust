@@ -3,7 +3,7 @@ use crate::error::{FluxError, Result};
 use crate::helpers::{
     logging::{log_info, log_success},
     system::execute_command,
-    user_input::{prompt_input, prompt_with_default},
+    user_input::prompt_with_default,
 };
 use crate::modules::{Module, ModuleBase, ModuleContext, ModuleInfo};
 use async_trait::async_trait;
@@ -13,6 +13,12 @@ use colored::Colorize;
 /// Timezone configuration module
 pub struct TimezoneModule {
     base: ModuleBase,
+}
+
+impl Default for TimezoneModule {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 impl TimezoneModule {

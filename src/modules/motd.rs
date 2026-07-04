@@ -22,6 +22,12 @@ pub struct MotdModule {
     base: ModuleBase,
 }
 
+impl Default for MotdModule {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl MotdModule {
     pub fn new() -> Self {
         let info = ModuleInfo {
@@ -321,7 +327,7 @@ echo
                 let mut perms = fs::metadata(&script_path)?.permissions();
                 perms.set_mode(0o644); // Remove execute permission
                 fs::set_permissions(&script_path, perms)?;
-                log_debug(&format!("Disabled: {}", script));
+                log_debug(format!("Disabled: {}", script));
             }
         }
 
@@ -351,7 +357,7 @@ echo
                 let mut perms = fs::metadata(&script_path)?.permissions();
                 perms.set_mode(0o755); // Add execute permission
                 fs::set_permissions(&script_path, perms)?;
-                log_debug(&format!("Enabled: {}", script));
+                log_debug(format!("Enabled: {}", script));
             }
         }
 
@@ -400,7 +406,7 @@ echo
             let script_path = motd_dir.join(script);
             if script_path.exists() {
                 fs::remove_file(&script_path)?;
-                log_debug(&format!("Removed: {}", script));
+                log_debug(format!("Removed: {}", script));
             }
         }
 
@@ -477,7 +483,7 @@ echo
                         org.as_deref(),
                         message.as_deref(),
                     ).await {
-                        log_error(&format!("Failed to install MOTD: {}", e));
+                        log_error(format!("Failed to install MOTD: {}", e));
                     }
                 }
                 1 => {

@@ -22,6 +22,12 @@ pub struct SshModule {
     base: ModuleBase,
 }
 
+impl Default for SshModule {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl SshModule {
     pub fn new() -> Self {
         let info = ModuleInfo {
@@ -175,11 +181,9 @@ Include {}/*.conf
 
     /// Change SSH port
     async fn change_port(&self, new_port: u16) -> Result<()> {
-        if let Err(e) = crate::helpers::validation::validate_port(&new_port.to_string()) {
-            return Err(e);
-        }
+        crate::helpers::validation::validate_port(&new_port.to_string())?;
 
-        log_info(&format!("Changing SSH port to {}", new_port));
+        log_info(format!("Changing SSH port to {}", new_port));
 
         // Backup config
         backup_file(SSH_CONFIG_PATH)?;
@@ -213,8 +217,8 @@ Include {}/*.conf
         // Validate
         self.validate_ssh_config().await?;
 
-        log_success(&format!("SSH port changed to {}", new_port));
-        log_warn(&format!(
+        log_success(format!("SSH port changed to {}", new_port));
+        log_warn(format!(
             "Update your firewall rules to allow port {}",
             new_port
         ));
@@ -340,7 +344,7 @@ bantime = 86400
         ];
 
         for (key_type, key_path) in key_types {
-            log_info(&format!("Generating {} key", key_type));
+            log_info(format!("Generating {} key", key_type));
 
             // Backup existing key
             if Path::new(key_path).exists() {
@@ -364,9 +368,9 @@ bantime = 86400
                 .map_err(|e| FluxError::command_failed(format!("Failed to generate {} key: {}", key_type, e)))?;
 
             if output.status.success() {
-                log_success(&format!("{} host key generated", key_type));
+                log_success(format!("{} host key generated", key_type));
             } else {
-                log_warn(&format!("Failed to generate {} host key", key_type));
+                log_warn(format!("Failed to generate {} host key", key_type));
             }
         }
 
@@ -495,11 +499,11 @@ bantime = 86400
         log_success("SSH hardening complete!");
 
         if change_port {
-            log_warn(&format!(
+            log_warn(format!(
                 "\nIMPORTANT: Update your firewall to allow port {}",
                 port
             ));
-            log_warn(&format!("Next SSH connection: ssh -p {} user@host", port));
+            log_warn(format!("Next SSH connection: ssh -p {} user@host", port));
         }
 
         Ok(())

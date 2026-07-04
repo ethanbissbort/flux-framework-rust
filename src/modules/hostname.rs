@@ -17,6 +17,12 @@ pub struct HostnameModule {
     base: ModuleBase,
 }
 
+impl Default for HostnameModule {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl HostnameModule {
     pub fn new() -> Self {
         let info = ModuleInfo {
@@ -76,7 +82,7 @@ impl HostnameModule {
             )
     }
     
-    async fn execute_hostname(&self, matches: &ArgMatches, ctx: &ModuleContext<'_>) -> Result<()> {
+    async fn execute_hostname(&self, matches: &ArgMatches, _ctx: &ModuleContext<'_>) -> Result<()> {
         if matches.get_flag("show") {
             return self.show_hostname_config().await;
         }

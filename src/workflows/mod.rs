@@ -115,9 +115,29 @@ impl BaseWorkflow {
             modules: modules.into_iter().map(String::from).collect(),
         }
     }
-    
+
+    /// Workflow name
+    pub fn name(&self) -> &str {
+        &self.name
+    }
+
+    /// Workflow description
+    pub fn description(&self) -> &str {
+        &self.description
+    }
+
+    /// Modules that will be executed, in order
+    pub fn modules(&self) -> &[String] {
+        &self.modules
+    }
+
     /// Execute modules in sequence
     pub async fn execute_modules(&self, config: &Config) -> Result<()> {
+        log_info(format!(
+            "Starting workflow '{}': {}",
+            self.name, self.description
+        ));
+
         let manager = ModuleManager::new()?;
         
         let total = self.modules.len();

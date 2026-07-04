@@ -23,6 +23,12 @@ pub struct ZshModule {
     base: ModuleBase,
 }
 
+impl Default for ZshModule {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl ZshModule {
     pub fn new() -> Self {
         let info = ModuleInfo {
@@ -66,7 +72,7 @@ impl ZshModule {
 
     /// Install Oh-My-Zsh for a user
     async fn install_oh_my_zsh(&self, username: &str) -> Result<()> {
-        log_info(&format!("Installing Oh-My-Zsh for user: {}", username));
+        log_info(format!("Installing Oh-My-Zsh for user: {}", username));
 
         let user = get_user_by_name(username)
             .ok_or_else(|| FluxError::Module(format!("User '{}' not found", username)))?;
@@ -102,7 +108,7 @@ impl ZshModule {
 
         if !output.status.success() {
             let stderr = String::from_utf8_lossy(&output.stderr);
-            log_warn(&format!("Oh-My-Zsh installation warning: {}", stderr));
+            log_warn(format!("Oh-My-Zsh installation warning: {}", stderr));
         }
 
         log_success("Oh-My-Zsh installed successfully");
@@ -177,7 +183,7 @@ impl ZshModule {
                     }
                 }
                 _ => {
-                    log_debug(&format!("Plugin '{}' is built-in, skipping", plugin));
+                    log_debug(format!("Plugin '{}' is built-in, skipping", plugin));
                 }
             }
         }
@@ -258,7 +264,7 @@ impl ZshModule {
 
                 // Only include users with UID >= 1000 (regular users) and not root
                 // Also check they have a valid shell (not /bin/false, /usr/sbin/nologin, etc.)
-                if uid >= 1000 && uid < 65534 && username != "root"
+                if (1000..65534).contains(&uid) && username != "root"
                     && !shell.contains("nologin") && !shell.contains("false") {
                     users.push(username.to_string());
                 }
@@ -314,7 +320,7 @@ impl ZshModule {
 
     /// Configure ZSH for a user using config file
     async fn configure_zsh(&self, username: &str, _theme: &str) -> Result<()> {
-        log_info(&format!("Configuring ZSH for user: {}", username));
+        log_info(format!("Configuring ZSH for user: {}", username));
 
         let user = get_user_by_name(username)
             .ok_or_else(|| FluxError::Module(format!("User '{}' not found", username)))?;
@@ -362,7 +368,7 @@ impl ZshModule {
 
     /// Set ZSH as default shell
     async fn set_default_shell(&self, username: &str) -> Result<()> {
-        log_info(&format!("Setting ZSH as default shell for: {}", username));
+        log_info(format!("Setting ZSH as default shell for: {}", username));
 
         // Get ZSH path
         let output = Command::new("which")
@@ -388,7 +394,7 @@ impl ZshModule {
         // Change user shell
         execute_command("chsh", &["-s", &zsh_path, username])?;
 
-        log_success(&format!("ZSH set as default shell for {}", username));
+        log_success(format!("ZSH set as default shell for {}", username));
         log_info("Logout and login again to use ZSH");
 
         Ok(())
@@ -396,7 +402,7 @@ impl ZshModule {
 
     /// Full ZSH setup for a user
     async fn full_setup(&self, username: &str, theme: &str, set_default: bool) -> Result<()> {
-        log_info(&format!("Starting full ZSH setup for: {}", username));
+        log_info(format!("Starting full ZSH setup for: {}", username));
 
         // Install ZSH
         self.install_zsh().await?;
@@ -439,15 +445,15 @@ impl ZshModule {
             return Ok(());
         }
 
-        log_info(&format!("Found {} non-root user(s): {}", users.len(), users.join(", ")));
+        log_info(format!("Found {} non-root user(s): {}", users.len(), users.join(", ")));
 
         // Setup for each user
         for username in users {
-            log_info(&format!("Setting up ZSH for user: {}", username));
+            log_info(format!("Setting up ZSH for user: {}", username));
 
             match self.full_setup(&username, "fluxlab", true).await {
-                Ok(_) => log_success(&format!("ZSH setup completed for {}", username)),
-                Err(e) => log_warn(&format!("Failed to setup ZSH for {}: {}", username, e)),
+                Ok(_) => log_success(format!("ZSH setup completed for {}", username)),
+                Err(e) => log_warn(format!("Failed to setup ZSH for {}: {}", username, e)),
             }
         }
 
@@ -479,7 +485,7 @@ impl ZshModule {
                     let set_default = prompt_yes_no("Set ZSH as default shell?", true)?;
 
                     if let Err(e) = self.full_setup(&username, themes[theme_choice], set_default).await {
-                        log_error(&format!("Setup failed: {}", e));
+                        log_error(format!("Setup failed: {}", e));
                     }
                 }
                 1 => {
